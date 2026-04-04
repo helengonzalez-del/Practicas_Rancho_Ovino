@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rancho Ovino — Sistema de Gestión</title>
+
+  <!-- Librerías externas -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+
+  <!-- Estilos del proyecto (el orden importa) -->
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/auth.css">
+</head>
+<body>
+
+<!-- ========== PANTALLA DE AUTH ========== -->
+<div id="auth-screen" class="visible">
+  <div class="auth-bg-pattern"></div>
+  <div class="auth-card">
+    <div class="auth-logo">
+      <span class="auth-logo-icon">🐑</span>
+      <div class="auth-logo-title">Rancho Ovino</div>
+      <div class="auth-logo-sub">Sistema de Gestión Ganadera</div>
+    </div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab-btn active" onclick="switchAuthTab('login')">Iniciar Sesión</button>
+      <button class="auth-tab-btn" onclick="switchAuthTab('register')">Registrarse</button>
+    </div>
+
+    <div id="auth-error" class="auth-error"></div>
+
+    <!-- LOGIN -->
+    <div id="form-login">
+      <div class="auth-form-group">
+        <label>Correo Electrónico</label>
+        <input type="email" id="login-email" placeholder="correo@ejemplo.com" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <div class="auth-form-group">
+        <label>Contraseña</label>
+        <input type="password" id="login-password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="auth-btn" id="btn-login" onclick="doLogin()">Entrar al Sistema</button>
+      <div class="auth-divider">¿No tienes cuenta? Haz clic en <strong>Registrarse</strong></div>
+    </div>
+
+    <!-- REGISTRO -->
+    <div id="form-register" style="display:none">
+      <div class="auth-form-group">
+        <label>Nombre Completo</label>
+        <input type="text" id="reg-nombre" placeholder="Tu nombre">
+      </div>
+      <div class="auth-form-group">
+        <label>Correo Electrónico</label>
+        <input type="email" id="reg-email" placeholder="correo@ejemplo.com">
+      </div>
+      <div class="auth-form-group">
+        <label>Teléfono (opcional)</label>
+        <input type="tel" id="reg-telefono" placeholder="+52 686 000 0000">
+      </div>
+      <div class="auth-form-group">
+        <label>Rol</label>
+        <select id="reg-rol">
+          <option value="productor">Productor</option>
+          <option value="veterinario">Veterinario</option>
+          <option value="admin">Administrador</option>
+        </select>
+      </div>
+      <div class="auth-form-group">
+        <label>Contraseña</label>
+        <input type="password" id="reg-password" placeholder="Mínimo 6 caracteres">
+      </div>
+      <div class="auth-form-group">
+        <label>Confirmar Contraseña</label>
+        <input type="password" id="reg-password2" placeholder="Repite la contraseña" onkeydown="if(event.key==='Enter')doRegister()">
+      </div>
+      <button class="auth-btn" id="btn-register" onclick="doRegister()">Crear Cuenta</button>
+      <div class="auth-divider">¿Ya tienes cuenta? Haz clic en <strong>Iniciar Sesión</strong></div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== APP PRINCIPAL ========== -->
+<div id="app-shell">
+<header class="header">
+  <div class="header-brand">
+    <span class="header-icon">🐑</span>
+    <div>
+      <div class="header-title">Rancho Ovino</div>
+      <div class="header-sub">Sistema de Gestión Ganadera</div>
+    </div>
+  </div>
+  <div class="header-user">
+    <div class="user-chip">
+      <div class="user-avatar" id="user-avatar">?</div>
+      <span class="user-name" id="user-display">Cargando...</span>
+    </div>
+    <div class="header-status" style="margin-left:0.5rem">
+      <div class="status-dot"></div>
+      <span style="font-size:0.72rem">En vivo</span>
+    </div>
+    <button class="btn-logout" onclick="doLogout()">⎋ Salir</button>
+  </div>
+</header>
+
+<nav class="nav-tabs">
+  <button class="nav-tab active" onclick="switchTab('dashboard')">📊 Dashboard</button>
+  <button class="nav-tab" onclick="switchTab('animales')">🐑 Animales</button>
+  <button class="nav-tab" onclick="switchTab('reproduccion')">🐣 Reproducción</button>
+  <button class="nav-tab" onclick="switchTab('produccion')">⚖️ Producción</button>
+  <button class="nav-tab" onclick="switchTab('salud')">💉 Salud</button>
+  <button class="nav-tab" onclick="switchTab('ventas')">💰 Ventas</button>
+  <button class="nav-tab" onclick="switchTab('detalle_venta')">🧾 Detalle Ventas</button>
+</nav>
+
+<main class="main">
+
+  <!-- ===== DASHBOARD ===== -->
+  <div id="tab-dashboard" class="tab-panel active">
+    <div class="page-header">
+      <h1 class="page-title">📊 Dashboard General</h1>
+      <span class="realtime-badge"><span class="status-dot" style="background:#4CAF50;animation:pulse 2s infinite"></span>Actualizando en tiempo real</span>
+    </div>
+
+    <div class="stat-cards" id="stat-cards">
+      <div class="stat-card verde">
+        <div class="stat-icon">🐑</div>
+        <div class="stat-value" id="stat-total">—</div>
+        <div class="stat-label">Total Animales Activos</div>
+      </div>
+      <div class="stat-card dorado">
+        <div class="stat-icon">♂️</div>
+        <div class="stat-value" id="stat-machos">—</div>
+        <div class="stat-label">Machos</div>
+      </div>
+      <div class="stat-card tierra">
+        <div class="stat-icon">♀️</div>
+        <div class="stat-value" id="stat-hembras">—</div>
+        <div class="stat-label">Hembras</div>
+      </div>
+      <div class="stat-card dorado">
+        <div class="stat-icon">🐑</div>
+        <div class="stat-value" id="stat-gestando">—</div>
+        <div class="stat-label">En Gestación</div>
+      </div>
+      <div class="stat-card verde">
+        <div class="stat-icon">💰</div>
+        <div class="stat-value" id="stat-ventas-total">—</div>
+        <div class="stat-label">Ventas Totales</div>
+      </div>
+      <div class="stat-card rojo">
+        <div class="stat-icon">⚠️</div>
+        <div class="stat-value" id="stat-eventos-salud">—</div>
+        <div class="stat-label">Eventos de Salud</div>
+      </div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">🐑 Estado del Rebaño</div>
+        <canvas id="chartEstado" height="220"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">⚖️ Peso Promedio por Mes</div>
+        <canvas id="chartPesos" height="220"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">💉 Eventos de Salud por Tipo</div>
+        <canvas id="chartSalud" height="220"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">💰 Ventas por Mes</div>
+        <canvas id="chartVentas" height="220"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom:1.5rem">
+      <div class="chart-title">📅 Próximos Partos Estimados</div>
+      <div id="proximos-partos-list"></div>
+    </div>
+  </div>
+
+  <!-- ===== ANIMALES ===== -->
+  <div id="tab-animales" class="tab-panel">
+    <div class="section-header">
+      <h1 class="page-title">🐑 Registro de Animales</h1>
+      <div style="display:flex;gap:0.75rem;align-items:center">
+        <span class="realtime-badge"><span class="status-dot" style="background:#4CAF50;animation:pulse 2s infinite"></span>Tiempo Real</span>
+        <button class="btn btn-primary" onclick="openModal('modal-animal')">+ Registrar Animal</button>
+      </div>
+    </div>
+    <div id="table-animales" class="table-wrap"></div>
+  </div>
+
+  <!-- ===== REPRODUCCION ===== -->
+  <div id="tab-reproduccion" class="tab-panel">
+    <div class="section-header">
+      <h1 class="page-title">🐣 Reproducción</h1>
+      <div style="display:flex;gap:0.75rem;align-items:center">
+        <span class="realtime-badge"><span class="status-dot" style="background:#4CAF50;animation:pulse 2s infinite"></span>Tiempo Real</span>
+        <button class="btn btn-primary" onclick="openModal('modal-reproduccion')">+ Nuevo Empadre</button>
+      </div>
+    </div>
+    <div id="table-reproduccion" class="table-wrap"></div>
+  </div>
+
+  <!-- ===== PRODUCCION ===== -->
+  <div id="tab-produccion" class="tab-panel">
+    <div class="section-header">
+      <h1 class="page-title">⚖️ Producción (Pesos)</h1>
+      <div style="display:flex;gap:0.75rem;align-items:center">
+        <span class="realtime-badge"><span class="status-dot" style="background:#4CAF50;animation:pulse 2s infinite"></span>Tiempo Real</span>
+        <button class="btn btn-primary" onclick="openModal('modal-produccion')">+ Registrar Peso</button>
+      </div>
+    </div>
+    <div id="table-produccion" class="table-wrap"></div>
+  </div>
+
+  <!-- ===== SALUD ===== -->
+  <div id="tab-salud" class="tab-panel">
+    <div class="section-header">
+      <h1 class="page-title">💉 Salud Animal</h1>
+      <div style="display:flex;gap:0.75rem;align-items:center">
+        <span class="realtime-badge"><span class="status-dot" style="background:#4CAF50;animation:pulse 2s infinite"></span>Tiempo Real</span>
+        <button class="btn btn-primary" onclick="openModal('modal-salud')">+ Registrar Evento</button>
+      </div>
+    </div>
+    <div id="table-salud" class="table-wrap"></div>
+  </div>
+
+  <!-- ===== VENTAS ===== -->
+  <div id="tab-ventas" class="tab-panel">
+    <div class="section-header">
+      <h1 class="page-title">💰 Ventas</h1>
+      <div style="display:flex;gap:0.75rem;align-items:center">
+        <span class="realtime-badge"><span class="status-dot" style="background:#4CAF50;animation:pulse 2s infinite"></span>Tiempo Real</span>
+        <button class="btn btn-primary" onclick="openModal('modal-venta')">+ Nueva Venta</button>
+      </div>
+    </div>
+    <div id="table-ventas" class="table-wrap"></div>
+  </div>
+
+  <!-- ===== DETALLE VENTA ===== -->
+  <div id="tab-detalle_venta" class="tab-panel">
+    <div class="section-header">
+      <h1 class="page-title">🧾 Detalle de Ventas</h1>
+      <div style="display:flex;gap:0.75rem;align-items:center">
+        <span class="realtime-badge"><span class="status-dot" style="background:#4CAF50;animation:pulse 2s infinite"></span>Tiempo Real</span>
+        <button class="btn btn-primary" onclick="openModal('modal-detalle')">+ Agregar Animal a Venta</button>
+      </div>
+    </div>
+    <div id="table-detalle_venta" class="table-wrap"></div>
+  </div>
+
+</main>
+
+<!-- ========== MODALES ========== -->
+
+<!-- Modal Animal -->
+<div class="modal-overlay" id="modal-animal">
+  <div class="modal">
+    <div class="modal-header">
+      <span>🐑 Registrar Animal</span>
+      <button class="modal-close" onclick="closeModal('modal-animal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Identificador *</label>
+          <input type="text" id="a-identificador" placeholder="Ej: A-001">
+        </div>
+        <div class="form-group">
+          <label>Nombre</label>
+          <input type="text" id="a-nombre" placeholder="Ej: Lupita">
+        </div>
+        <div class="form-group">
+          <label>Sexo *</label>
+          <select id="a-sexo">
+            <option value="">Seleccionar...</option>
+            <option value="macho">Macho</option>
+            <option value="hembra">Hembra</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Raza</label>
+          <input type="text" id="a-raza" placeholder="Ej: Pelibuey">
+        </div>
+        <div class="form-group">
+          <label>Fecha de Nacimiento</label>
+          <input type="date" id="a-nacimiento">
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="a-estado">
+            <option value="activo">Activo</option>
+            <option value="vendido">Vendido</option>
+            <option value="muerto">Muerto</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Padre</label>
+          <select id="a-padre"><option value="">Ninguno</option></select>
+        </div>
+        <div class="form-group">
+          <label>Madre</label>
+          <select id="a-madre"><option value="">Ninguna</option></select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:var(--crema-oscuro);color:var(--marron-oscuro)" onclick="closeModal('modal-animal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveAnimal()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Reproduccion -->
+<div class="modal-overlay" id="modal-reproduccion">
+  <div class="modal">
+    <div class="modal-header">
+      <span>🐣 Registrar Empadre</span>
+      <button class="modal-close" onclick="closeModal('modal-reproduccion')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Hembra *</label>
+          <select id="r-hembra"><option value="">Seleccionar...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Macho *</label>
+          <select id="r-macho"><option value="">Seleccionar...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Fecha Empadre *</label>
+          <input type="date" id="r-empadre">
+        </div>
+        <div class="form-group">
+          <label>Fecha Parto Real</label>
+          <input type="date" id="r-parto-real">
+        </div>
+        <div class="form-group">
+          <label>Número de Crías</label>
+          <input type="number" id="r-crias" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="r-estado">
+            <option value="gestando">Gestando</option>
+            <option value="pario">Parió</option>
+            <option value="fallido">Fallido</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Observaciones</label>
+          <textarea id="r-observaciones" rows="2" placeholder="Notas adicionales..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:var(--crema-oscuro);color:var(--marron-oscuro)" onclick="closeModal('modal-reproduccion')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveReproduccion()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Produccion -->
+<div class="modal-overlay" id="modal-produccion">
+  <div class="modal">
+    <div class="modal-header">
+      <span>⚖️ Registrar Peso</span>
+      <button class="modal-close" onclick="closeModal('modal-produccion')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Animal *</label>
+          <select id="p-animal"><option value="">Seleccionar...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Fecha *</label>
+          <input type="date" id="p-fecha">
+        </div>
+        <div class="form-group">
+          <label>Peso (kg) *</label>
+          <input type="number" id="p-peso" step="0.01" placeholder="0.00">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Observaciones</label>
+          <textarea id="p-observaciones" rows="2" placeholder="Notas..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:var(--crema-oscuro);color:var(--marron-oscuro)" onclick="closeModal('modal-produccion')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveProduccion()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Salud -->
+<div class="modal-overlay" id="modal-salud">
+  <div class="modal">
+    <div class="modal-header">
+      <span>💉 Registrar Evento de Salud</span>
+      <button class="modal-close" onclick="closeModal('modal-salud')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Animal *</label>
+          <select id="s-animal"><option value="">Seleccionar...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Fecha *</label>
+          <input type="date" id="s-fecha">
+        </div>
+        <div class="form-group">
+          <label>Tipo *</label>
+          <select id="s-tipo">
+            <option value="">Seleccionar...</option>
+            <option value="enfermedad">Enfermedad</option>
+            <option value="vacuna">Vacuna</option>
+            <option value="tratamiento">Tratamiento</option>
+            <option value="desparasitacion">Desparasitación</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Medicamento</label>
+          <input type="text" id="s-medicamento" placeholder="Nombre del medicamento">
+        </div>
+        <div class="form-group">
+          <label>Dosis</label>
+          <input type="text" id="s-dosis" placeholder="Ej: 5ml">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Diagnóstico</label>
+          <textarea id="s-diagnostico" rows="2" placeholder="Descripción del diagnóstico..."></textarea>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Tratamiento</label>
+          <textarea id="s-tratamiento" rows="2" placeholder="Descripción del tratamiento..."></textarea>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Observaciones</label>
+          <textarea id="s-observaciones" rows="2" placeholder="Notas adicionales..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:var(--crema-oscuro);color:var(--marron-oscuro)" onclick="closeModal('modal-salud')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveSalud()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Venta -->
+<div class="modal-overlay" id="modal-venta">
+  <div class="modal">
+    <div class="modal-header">
+      <span>💰 Nueva Venta</span>
+      <button class="modal-close" onclick="closeModal('modal-venta')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Fecha *</label>
+          <input type="date" id="v-fecha">
+        </div>
+        <div class="form-group">
+          <label>Cliente</label>
+          <input type="text" id="v-cliente" placeholder="Nombre del cliente">
+        </div>
+        <div class="form-group">
+          <label>Total ($)</label>
+          <input type="number" id="v-total" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:var(--crema-oscuro);color:var(--marron-oscuro)" onclick="closeModal('modal-venta')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveVenta()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalle Venta -->
+<div class="modal-overlay" id="modal-detalle">
+  <div class="modal">
+    <div class="modal-header">
+      <span>🧾 Agregar Animal a Venta</span>
+      <button class="modal-close" onclick="closeModal('modal-detalle')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Venta *</label>
+          <select id="d-venta"><option value="">Seleccionar venta...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Animal *</label>
+          <select id="d-animal"><option value="">Seleccionar animal...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Precio ($)</label>
+          <input type="number" id="d-precio" step="0.01" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Peso (kg)</label>
+          <input type="number" id="d-peso" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:var(--crema-oscuro);color:var(--marron-oscuro)" onclick="closeModal('modal-detalle')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveDetalle()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+
+</div><!-- /app-shell -->
+
+  <!-- Scripts del proyecto (el orden importa) -->
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/animales.js"></script>
+  <script src="js/reproduccion.js"></script>
+  <script src="js/produccion.js"></script>
+  <script src="js/salud.js"></script>
+  <script src="js/ventas.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/realtime.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/auth.js"></script>
+
+</body>
+</html>
