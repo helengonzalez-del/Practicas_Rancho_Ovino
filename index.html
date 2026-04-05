@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1B5E35">
+  <link rel="apple-touch-icon" href="/Practicas_Rancho_Ovino/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Rancho Ovino">
   <title>Rancho Ovino — Sistema de Gestión</title>
 
   <!-- Librerías externas -->
@@ -10,12 +15,31 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
 
-  <!-- Estilos del proyecto (el orden importa) -->
+  <!-- Estilos del proyecto -->
   <link rel="stylesheet" href="css/base.css">
   <link rel="stylesheet" href="css/components.css">
   <link rel="stylesheet" href="css/auth.css">
 </head>
 <body>
+
+  <!-- todo tu contenido aquí... -->
+
+  <!-- Scripts del proyecto -->
+  <script src="js/config.js"></script>
+  <script src="js/utils.js"></script>
+  ...
+
+  <!-- PWA — va al final, antes de cerrar body -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js');
+      });
+    }
+  </script>
+
+</body>
+</html>
 
 <!-- ========== PANTALLA DE AUTH ========== -->
 <div id="auth-screen" class="visible">
