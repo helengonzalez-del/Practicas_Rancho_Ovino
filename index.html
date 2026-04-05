@@ -392,6 +392,45 @@
   </div>
 </div>
 
+<!-- Modal Editar Parto -->
+<div class="modal-overlay" id="modal-editar-parto">
+  <div class="modal">
+    <div class="modal-header">
+      <span>✏️ Actualizar Parto</span>
+      <button class="modal-close" onclick="closeModal('modal-editar-parto')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ep-id">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Fecha Parto Real</label>
+          <input type="date" id="ep-parto-real">
+        </div>
+        <div class="form-group">
+          <label>Número de Crías</label>
+          <input type="number" id="ep-crias" min="0" placeholder="0">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Estado *</label>
+          <select id="ep-estado">
+            <option value="gestando">Gestando</option>
+            <option value="pario">Parió</option>
+            <option value="fallido">Fallido</option>
+          </select>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Observaciones</label>
+          <textarea id="ep-observaciones" rows="2" placeholder="Notas adicionales..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:var(--crema-oscuro);color:var(--marron-oscuro)" onclick="closeModal('modal-editar-parto')">Cancelar</button>
+      <button class="btn btn-primary" onclick="updateParto()">💾 Guardar Cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Produccion -->
 <div class="modal-overlay" id="modal-produccion">
   <div class="modal">
