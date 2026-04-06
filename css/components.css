@@ -96,6 +96,13 @@
     font-size: 0.75rem;
   }
 
+  .btn-edit {
+  background: linear-gradient(135deg, var(--dorado), var(--dorado-claro));
+  color: var(--marron-oscuro);
+  padding: 0.35rem 0.8rem;
+  font-size: 0.75rem;
+  }
+
   .btn-sm {
     padding: 0.35rem 0.8rem;
     font-size: 0.75rem;
