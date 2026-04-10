@@ -24,50 +24,49 @@ async function loadDashboard() {
   buildChartEstado(animals || []);
   await buildChartSalud();
   await buildChartVentas();
+
+  // ✅ IMPORTANTE: cargar filtros antes de la gráfica
   await buildFiltros();
+
   await buildChartPesos();
   await buildProximosPartos();
 }
 
-// ── Construir selectores de animal y año ──────────────────────────────────
+// ── FILTROS (OPCIÓN A: usar HTML existente) ──────────────────────────────
 async function buildFiltros() {
-  // Solo construir una vez
-  if (document.getElementById('filtro-animal')) return;
+  const selectAnimal = document.getElementById('filtro-animal');
+  const selectAnio   = document.getElementById('filtro-anio');
 
-  const { data: animals } = await db.from('animales').select('id,identificador,nombre').eq('estado','activo').order('identificador');
+  if (!selectAnimal || !selectAnio) return;
 
+  // ── Animales ──
+  const { data: animals } = await db
+    .from('animales')
+    .select('id,identificador,nombre')
+    .eq('estado','activo')
+    .order('identificador');
+
+  selectAnimal.innerHTML = `
+    <option value="">Todos</option>
+    ${(animals || []).map(a =>
+      `<option value="${a.id}">
+        ${a.identificador}${a.nombre ? ' — ' + a.nombre : ''}
+      </option>`
+    ).join('')}
+  `;
+
+  // ── Años ──
   const anioActual = new Date().getFullYear();
   const anios = [];
   for (let y = 2024; y <= anioActual + 3; y++) anios.push(y);
 
-  const filtrosHTML = `
-    <div style="display:flex;gap:1rem;align-items:center;flex-wrap:wrap;
-      background:var(--blanco-roto);border:1px solid var(--crema-oscuro);
-      border-radius:12px;padding:1rem 1.5rem;margin-bottom:1.5rem;">
-      <span style="font-size:0.75rem;font-weight:700;text-transform:uppercase;
-        letter-spacing:1px;color:var(--gris-calido);">⚖️ Filtrar peso:</span>
-      <select id="filtro-animal" onchange="onFiltroChange()"
-        style="padding:0.5rem 0.8rem;border:2px solid var(--crema-oscuro);
-        border-radius:8px;font-family:Lato,sans-serif;font-size:0.88rem;
-        color:var(--marron-oscuro);background:white;outline:none;cursor:pointer;">
-        <option value="">Todos los animales</option>
-        ${(animals || []).map(a =>
-          `<option value="${a.id}">${a.identificador}${a.nombre ? ' — ' + a.nombre : ''}</option>`
-        ).join('')}
-      </select>
-      <select id="filtro-anio" onchange="onFiltroChange()"
-        style="padding:0.5rem 0.8rem;border:2px solid var(--crema-oscuro);
-        border-radius:8px;font-family:Lato,sans-serif;font-size:0.88rem;
-        color:var(--marron-oscuro);background:white;outline:none;cursor:pointer;">
-        ${anios.map(y =>
-          `<option value="${y}" ${y === anioActual ? 'selected' : ''}>${y}</option>`
-        ).join('')}
-      </select>
-    </div>`;
+  selectAnio.innerHTML = anios.map(y =>
+    `<option value="${y}" ${y === anioActual ? 'selected' : ''}>${y}</option>`
+  ).join('');
 
-  // Insertar antes del chartPesos
-  const chartPesosCard = document.getElementById('chartPesos').closest('.chart-card');
-  chartPesosCard.insertAdjacentHTML('beforebegin', filtrosHTML);
+  // Inicializar variables globales
+  anioSeleccionado = anioActual;
+  animalSeleccionado = '';
 }
 
 function onFiltroChange() {
@@ -76,7 +75,7 @@ function onFiltroChange() {
   buildChartPesos();
 }
 
-// ── Gráfica de pesos con 12 meses fijos ──────────────────────────────────
+// ── Gráfica de pesos ─────────────────────────────────────────────────────
 async function buildChartPesos() {
   const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
@@ -88,7 +87,6 @@ async function buildChartPesos() {
 
   const { data } = await query;
 
-  // Filtrar por año seleccionado y agrupar por mes
   const pesoPorMes = Array(12).fill(null).map(() => []);
 
   (data || []).forEach(p => {
@@ -98,7 +96,6 @@ async function buildChartPesos() {
     pesoPorMes[fecha.getMonth()].push(p.peso);
   });
 
-  // Promedio por mes (null si no hay dato)
   const valores = pesoPorMes.map(arr =>
     arr.length ? parseFloat((arr.reduce((s,v) => s+v, 0) / arr.length).toFixed(2)) : null
   );
@@ -142,7 +139,7 @@ async function buildChartPesos() {
   );
 }
 
-// ── Resto de gráficas (sin cambios) ──────────────────────────────────────
+// ── Base chart ───────────────────────────────────────────────────────────
 function buildChart(id, type, labels, datasets, options = {}) {
   const ctx = document.getElementById(id);
   if (!ctx) return;
@@ -159,6 +156,7 @@ function buildChart(id, type, labels, datasets, options = {}) {
   });
 }
 
+// ── Estado ───────────────────────────────────────────────────────────────
 function buildChartEstado(animals) {
   const activos  = animals.filter(a => a.estado === 'activo').length;
   const vendidos = animals.filter(a => a.estado === 'vendido').length;
@@ -169,6 +167,7 @@ function buildChartEstado(animals) {
   );
 }
 
+// ── Salud ────────────────────────────────────────────────────────────────
 async function buildChartSalud() {
   const { data } = await db.from('salud').select('tipo');
   if (!data?.length) return;
@@ -181,6 +180,7 @@ async function buildChartSalud() {
   );
 }
 
+// ── Ventas ───────────────────────────────────────────────────────────────
 async function buildChartVentas() {
   const { data } = await db.from('ventas').select('fecha,total').order('fecha');
   if (!data?.length) return;
@@ -198,6 +198,7 @@ async function buildChartVentas() {
   );
 }
 
+// ── Próximos partos ──────────────────────────────────────────────────────
 async function buildProximosPartos() {
   const { data } = await db
     .from('reproduccion')
@@ -217,14 +218,14 @@ async function buildProximosPartos() {
     const dias    = Math.round((fecha - hoy) / (1000 * 60 * 60 * 24));
     const urgencia = dias <= 7 ? '#C0392B' : dias <= 30 ? '#E67E22' : '#1B5E35';
     return `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;
+      <div style="display:flex;justify-content:space-between;padding:0.75rem 1rem;
         background:var(--crema);border-radius:8px;margin-bottom:0.5rem;border-left:4px solid ${urgencia}">
         <div>
-          <strong style="color:var(--tierra)">${r.hembra?.identificador || '—'}</strong>
-          <span style="color:var(--gris-calido);font-size:0.85rem;margin-left:0.5rem">${r.hembra?.nombre || ''}</span>
+          <strong>${r.hembra?.identificador || '—'}</strong>
+          <span style="font-size:0.85rem;margin-left:0.5rem">${r.hembra?.nombre || ''}</span>
         </div>
         <div style="text-align:right">
-          <div style="font-size:0.8rem;color:var(--gris-calido)">Parto estimado</div>
+          <div style="font-size:0.8rem">Parto estimado</div>
           <div style="font-weight:700;color:${urgencia}">
             ${formatDate(r.fecha_parto_estimada)} (${dias > 0 ? 'en ' + dias + ' días' : 'hoy o ya pasó'})
           </div>

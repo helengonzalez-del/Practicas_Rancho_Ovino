@@ -188,10 +188,23 @@
         <div class="chart-title">🐑 Estado del Rebaño</div>
         <canvas id="chartEstado" height="220"></canvas>
       </div>
-      <div class="chart-card">
-        <div class="chart-title">⚖️ Peso Promedio por Mes</div>
-        <canvas id="chartPesos" height="220"></canvas>
+    <div class="chart-card">
+      <div class="chart-title" style="justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
+        <span>⚖️ Peso por Mes</span>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+          <select id="filtro-animal" onchange="onFiltroChange()"
+            style="padding:0.4rem 0.7rem;border:2px solid var(--crema-oscuro);border-radius:8px;
+            font-family:Lato,sans-serif;font-size:0.8rem;color:var(--marron-oscuro);background:white;outline:none;cursor:pointer;">
+            <option value="">Todos</option>
+          </select>
+          <select id="filtro-anio" onchange="onFiltroChange()"
+            style="padding:0.4rem 0.7rem;border:2px solid var(--crema-oscuro);border-radius:8px;
+            font-family:Lato,sans-serif;font-size:0.8rem;color:var(--marron-oscuro);background:white;outline:none;cursor:pointer;">
+          </select>
+        </div>
       </div>
+      <canvas id="chartPesos" height="220"></canvas>
+    </div>
       <div class="chart-card">
         <div class="chart-title">💉 Eventos de Salud por Tipo</div>
         <canvas id="chartSalud" height="220"></canvas>
