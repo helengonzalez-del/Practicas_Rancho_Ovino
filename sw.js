@@ -1,4 +1,4 @@
-const CACHE = 'rancho-ovino-v2'; // 👈 cambia versión para forzar actualización
+const CACHE = 'rancho-ovino-v3';// 👈 cambia versión para forzar actualización
 
 const ASSETS = [
   './',
