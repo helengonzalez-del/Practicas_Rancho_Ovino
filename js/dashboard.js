@@ -1,8 +1,6 @@
 // dashboard.js — Estadísticas y gráficas
 
 var charts = {};
-var anioSeleccionado = new Date().getFullYear();
-var animalSeleccionado = '';
 
 async function loadDashboard() {
   const { data: animals } = await db.from('animales').select('id,sexo,estado');
@@ -22,84 +20,10 @@ async function loadDashboard() {
   document.getElementById('stat-eventos-salud').textContent = salud?.length || 0;
 
   buildChartEstado(animals || []);
+  await buildChartPesos();
   await buildChartSalud();
   await buildChartVentas();
-  await buildFiltros();
-  await buildChartPesos();
   await buildProximosPartos();
-}
-
-async function buildFiltros() {
-  const { data: animals } = await db.from('animales').select('id,identificador,nombre').order('identificador');
-
-  const selAnimal = document.getElementById('filtro-animal');
-  const selAnio   = document.getElementById('filtro-anio');
-  if (!selAnimal || !selAnio) return;
-
-  selAnimal.innerHTML = '<option value="">Todos</option>' +
-    (animals || []).map(a =>
-      `<option value="${a.id}">${a.identificador}${a.nombre ? ' — ' + a.nombre : ''}</option>`
-    ).join('');
-
-  if (selAnio.options.length === 0) {
-    const anioActual = new Date().getFullYear();
-    for (let y = 2024; y <= anioActual + 3; y++) {
-      const opt = document.createElement('option');
-      opt.value = y;
-      opt.textContent = y;
-      if (y === anioActual) opt.selected = true;
-      selAnio.appendChild(opt);
-    }
-  }
-}
-
-function onFiltroChange() {
-  animalSeleccionado = document.getElementById('filtro-animal').value;
-  anioSeleccionado   = parseInt(document.getElementById('filtro-anio').value);
-  buildChartPesos();
-}
-
-async function buildChartPesos() {
-  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-
-  let query = db.from('produccion').select('fecha,peso,id_animal');
-  if (animalSeleccionado) query = query.eq('id_animal', animalSeleccionado);
-
-  const { data } = await query;
-
-  const pesoPorMes = Array(12).fill(null).map(() => []);
-  (data || []).forEach(p => {
-    if (!p.fecha || !p.peso) return;
-    const fecha = new Date(p.fecha + 'T12:00:00');
-    if (fecha.getFullYear() !== anioSeleccionado) return;
-    pesoPorMes[fecha.getMonth()].push(p.peso);
-  });
-
-  const valores = pesoPorMes.map(arr =>
-    arr.length ? parseFloat((arr.reduce((s,v) => s+v, 0) / arr.length).toFixed(2)) : null
-  );
-
-  const selAnimal = document.getElementById('filtro-animal');
-  const labelAnimal = selAnimal?.selectedIndex > 0
-    ? selAnimal.options[selAnimal.selectedIndex].text
-    : 'Todos';
-
-  buildChart('chartPesos', 'line', meses, [{
-    label: `Peso (kg) — ${labelAnimal} ${anioSeleccionado}`,
-    data: valores,
-    borderColor: '#2E6B3E',
-    backgroundColor: 'rgba(46,107,62,0.1)',
-    tension: 0.4,
-    fill: true,
-    pointBackgroundColor: '#2E6B3E',
-    pointRadius: 5,
-    spanGaps: false
-  }], {
-    scales: {
-      y: { beginAtZero: false, ticks: { color: '#4A7A5A', callback: v => v + ' kg' } },
-      x: { ticks: { color: '#4A7A5A' } }
-    }
-  });
 }
 
 function buildChart(id, type, labels, datasets, options = {}) {
@@ -125,6 +49,26 @@ function buildChartEstado(animals) {
   buildChart('chartEstado', 'doughnut',
     ['Activos', 'Vendidos', 'Muertos'],
     [{ data: [activos, vendidos, muertos], backgroundColor: ['#1B5E35','#5BAD78','#C0392B'], borderWidth: 0 }]
+  );
+}
+
+async function buildChartPesos() {
+  const { data } = await db.from('produccion').select('fecha,peso').order('fecha');
+  if (!data?.length) return;
+  const grouped = {};
+  data.forEach(p => {
+    const mes = p.fecha?.slice(0, 7);
+    if (!grouped[mes]) grouped[mes] = [];
+    grouped[mes].push(p.peso);
+  });
+  const labels = Object.keys(grouped).slice(-8);
+  const values = labels.map(m => {
+    const arr = grouped[m];
+    return parseFloat((arr.reduce((s,v) => s+v, 0) / arr.length).toFixed(2));
+  });
+  buildChart('chartPesos', 'line', labels,
+    [{ label: 'Peso promedio (kg)', data: values, borderColor: '#2E6B3E', backgroundColor: 'rgba(46,107,62,0.1)', tension: 0.4, fill: true, pointBackgroundColor: '#2E6B3E' }],
+    { scales: { y: { beginAtZero: false, ticks: { color: '#4A7A5A' } }, x: { ticks: { color: '#4A7A5A' } } } }
   );
 }
 
