@@ -1,8 +1,8 @@
 // dashboard.js — Estadísticas y gráficas
 
-let charts = {};
-let anioSeleccionado = new Date().getFullYear();
-let animalSeleccionado = '';
+var charts = {};
+var anioSeleccionado = new Date().getFullYear();
+var animalSeleccionado = '';
 
 async function loadDashboard() {
   const { data: animals } = await db.from('animales').select('id,sexo,estado');
@@ -170,8 +170,8 @@ async function buildProximosPartos() {
   }
   const hoy = new Date();
   cont.innerHTML = data.map(r => {
-    const fecha   = new Date(r.fecha_parto_estimada + 'T12:00:00');
-    const dias    = Math.round((fecha - hoy) / (1000 * 60 * 60 * 24));
+    const fecha    = new Date(r.fecha_parto_estimada + 'T12:00:00');
+    const dias     = Math.round((fecha - hoy) / (1000 * 60 * 60 * 24));
     const urgencia = dias <= 7 ? '#C0392B' : dias <= 30 ? '#E67E22' : '#1B5E35';
     return `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;
