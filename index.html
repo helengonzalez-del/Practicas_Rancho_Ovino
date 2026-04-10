@@ -598,5 +598,13 @@
   <script src="js/app.js"></script>
   <script src="js/auth.js"></script>
 
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/Practicas_Rancho_Ovino/sw.js');
+      });
+    }
+  </script>
+
 </body>
 </html>
