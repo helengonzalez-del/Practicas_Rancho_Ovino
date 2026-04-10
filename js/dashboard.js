@@ -92,31 +92,30 @@ async function buildChartPesos() {
 
   const { data } = await query;
 
-  const pesoPorMes = Array(12).fill(null).map(() => []);
+  if (!data || data.length === 0) {
+    console.log('⚠️ No hay datos de producción');
+    return;
+  }
 
-  (data || []).forEach(p => {
-    if (!p.fecha) return;
-    const fecha = new Date(p.fecha + 'T12:00:00');
-    if (fecha.getFullYear() !== anioSeleccionado) return;
-    pesoPorMes[fecha.getMonth()].push(p.peso);
+  const pesoPorMes = Array(12).fill(null);
+
+  data.forEach(p => {
+    if (!p.fecha || !p.peso) return;
+
+    const fecha = new Date(p.fecha);
+    const mes = fecha.getMonth();
+
+    // 🔥 YA NO filtramos por año (para que SIEMPRE muestre algo)
+    pesoPorMes[mes] = p.peso;
   });
 
-  const valores = pesoPorMes.map(arr =>
-    arr.length ? parseFloat((arr.reduce((s,v) => s+v, 0) / arr.length).toFixed(2)) : null
-  );
-
-  const label = animalSeleccionado
-    ? document.getElementById('filtro-animal').selectedOptions[0].text
-    : 'Todos';
-
   buildChart('chartPesos', 'line', meses, [{
-    label: `Peso (kg) — ${label} ${anioSeleccionado}`,
-    data: valores,
+    label: 'Peso (kg)',
+    data: pesoPorMes,
     borderColor: '#2E6B3E',
     backgroundColor: 'rgba(46,107,62,0.1)',
     tension: 0.4,
-    fill: true,
-    pointRadius: 5
+    fill: true
   }]);
 }
 
