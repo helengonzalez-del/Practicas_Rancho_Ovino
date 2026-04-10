@@ -1,24 +1,17 @@
-// app.js — Inicialización principal (initApp)
+// app.js — Inicialización principal
 
-// ============= INIT =============
 async function initApp() {
   const today = new Date().toISOString().split('T')[0];
-
   ['a-nacimiento','r-empadre','r-parto-real','p-fecha','s-fecha','v-fecha'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = today;
   });
 
-  console.log('🔌 Probando conexión con Supabase...');
-  const { data: testData, error: testError } = await db.from('animales').select('id').limit(1);
-
+  const { error: testError } = await db.from('animales').select('id').limit(1);
   if (testError) {
-    console.error('❌ Error de conexión:', testError);
     showToast('❌ Error de conexión: ' + testError.message, 'error');
     return;
   }
-
-  console.log('✅ Conexión exitosa');
 
   await loadAnimales();
   await loadReproduccion();
@@ -26,9 +19,6 @@ async function initApp() {
   await loadSalud();
   await loadVentas();
   await loadDetalleVenta();
-
+  await loadDashboard();
   setupRealtime();
-
-  // 🔥 Cargar dashboard correctamente
-  switchTab('dashboard');
 }
