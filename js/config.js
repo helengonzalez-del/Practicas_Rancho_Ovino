@@ -7,3 +7,4 @@ const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let animalesCache = [];
 let ventasCache = [];
+let charts = {};

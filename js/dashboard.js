@@ -1,24 +1,29 @@
 // dashboard.js — Estadísticas y gráficas
 
-var charts = {};
-
+// ============= DASHBOARD =============
 async function loadDashboard() {
+  // Stats animales
   const { data: animals } = await db.from('animales').select('id,sexo,estado');
   const activos = animals?.filter(a => a.estado === 'activo') || [];
-  document.getElementById('stat-total').textContent   = activos.length;
-  document.getElementById('stat-machos').textContent  = activos.filter(a => a.sexo === 'macho').length;
+  document.getElementById('stat-total').textContent = activos.length;
+  document.getElementById('stat-machos').textContent = activos.filter(a => a.sexo === 'macho').length;
   document.getElementById('stat-hembras').textContent = activos.filter(a => a.sexo === 'hembra').length;
 
+  // Stats gestando
   const { data: repro } = await db.from('reproduccion').select('estado');
-  document.getElementById('stat-gestando').textContent = repro?.filter(r => r.estado === 'gestando').length || 0;
+  const gestando = repro?.filter(r => r.estado === 'gestando') || [];
+  document.getElementById('stat-gestando').textContent = gestando.length;
 
+  // Stats ventas
   const { data: ventas } = await db.from('ventas').select('total');
   const totalVentas = ventas?.reduce((s, v) => s + (v.total || 0), 0) || 0;
   document.getElementById('stat-ventas-total').textContent = formatMoney(totalVentas);
 
+  // Stats salud
   const { data: salud } = await db.from('salud').select('id');
   document.getElementById('stat-eventos-salud').textContent = salud?.length || 0;
 
+  // Charts
   buildChartEstado(animals || []);
   await buildChartPesos();
   await buildChartSalud();
@@ -36,19 +41,19 @@ function buildChart(id, type, labels, datasets, options = {}) {
     options: {
       responsive: true,
       maintainAspectRatio: true,
-      plugins: { legend: { labels: { font: { family: 'Lato' }, color: '#0F3320' } } },
+      plugins: { legend: { labels: { font: { family: 'Lato' }, color: '#3D2B1A' } } },
       ...options
     }
   });
 }
 
 function buildChartEstado(animals) {
-  const activos  = animals.filter(a => a.estado === 'activo').length;
+  const activos = animals.filter(a => a.estado === 'activo').length;
   const vendidos = animals.filter(a => a.estado === 'vendido').length;
-  const muertos  = animals.filter(a => a.estado === 'muerto').length;
+  const muertos = animals.filter(a => a.estado === 'muerto').length;
   buildChart('chartEstado', 'doughnut',
     ['Activos', 'Vendidos', 'Muertos'],
-    [{ data: [activos, vendidos, muertos], backgroundColor: ['#1B5E35','#5BAD78','#C0392B'], borderWidth: 0 }]
+    [{ data: [activos, vendidos, muertos], backgroundColor: ['#4A6741','#C8A96A','#C0392B'], borderWidth: 0 }]
   );
 }
 
@@ -64,11 +69,11 @@ async function buildChartPesos() {
   const labels = Object.keys(grouped).slice(-8);
   const values = labels.map(m => {
     const arr = grouped[m];
-    return parseFloat((arr.reduce((s,v) => s+v, 0) / arr.length).toFixed(2));
+    return (arr.reduce((s, v) => s + v, 0) / arr.length).toFixed(2);
   });
   buildChart('chartPesos', 'line', labels,
-    [{ label: 'Peso promedio (kg)', data: values, borderColor: '#2E6B3E', backgroundColor: 'rgba(46,107,62,0.1)', tension: 0.4, fill: true, pointBackgroundColor: '#2E6B3E' }],
-    { scales: { y: { beginAtZero: false, ticks: { color: '#4A7A5A' } }, x: { ticks: { color: '#4A7A5A' } } } }
+    [{ label: 'Peso promedio (kg)', data: values, borderColor: '#6B4C2A', backgroundColor: 'rgba(107,76,42,0.1)', tension: 0.4, fill: true, pointBackgroundColor: '#6B4C2A' }],
+    { scales: { y: { beginAtZero: false, ticks: { color: '#8A7968' } }, x: { ticks: { color: '#8A7968' } } } }
   );
 }
 
@@ -79,8 +84,8 @@ async function buildChartSalud() {
   data.forEach(s => { counts[s.tipo] = (counts[s.tipo] || 0) + 1; });
   buildChart('chartSalud', 'bar',
     Object.keys(counts),
-    [{ label: 'Eventos', data: Object.values(counts), backgroundColor: ['#1B5E35','#2E7D4F','#5BAD78','#72C490'], borderRadius: 6 }],
-    { scales: { y: { beginAtZero: true, ticks: { color: '#4A7A5A' } }, x: { ticks: { color: '#4A7A5A' } } } }
+    [{ label: 'Eventos', data: Object.values(counts), backgroundColor: ['#4A6741','#C8A96A','#6B4C2A','#8B6340'], borderRadius: 6 }],
+    { scales: { y: { beginAtZero: true, ticks: { color: '#8A7968' } }, x: { ticks: { color: '#8A7968' } } } }
   );
 }
 
@@ -96,17 +101,17 @@ async function buildChartVentas() {
   const labels = Object.keys(grouped).slice(-8);
   const values = labels.map(m => grouped[m].toFixed(2));
   buildChart('chartVentas', 'bar', labels,
-    [{ label: 'Ventas ($)', data: values, backgroundColor: 'rgba(91,173,120,0.7)', borderColor: '#5BAD78', borderWidth: 2, borderRadius: 6 }],
-    { scales: { y: { beginAtZero: true, ticks: { color: '#4A7A5A' } }, x: { ticks: { color: '#4A7A5A' } } } }
+    [{ label: 'Ventas ($)', data: values, backgroundColor: 'rgba(200,169,106,0.7)', borderColor: '#C8A96A', borderWidth: 2, borderRadius: 6 }],
+    { scales: { y: { beginAtZero: true, ticks: { color: '#8A7968' } }, x: { ticks: { color: '#8A7968' } } } }
   );
 }
 
 async function buildProximosPartos() {
-  const { data } = await db.from('reproduccion')
-    .select(`fecha_parto_estimada, estado, hembra:id_hembra(identificador,nombre)`)
-    .eq('estado','gestando')
-    .order('fecha_parto_estimada');
-
+  const { data } = await db.from('reproduccion').select(`
+    fecha_parto_estimada, estado,
+    hembra:id_hembra(identificador,nombre)
+  `).eq('estado','gestando').order('fecha_parto_estimada');
+  
   const cont = document.getElementById('proximos-partos-list');
   if (!data?.length) {
     cont.innerHTML = '<p style="color:var(--gris-calido);padding:1rem">No hay hembras en gestación actualmente.</p>';
@@ -114,21 +119,18 @@ async function buildProximosPartos() {
   }
   const hoy = new Date();
   cont.innerHTML = data.map(r => {
-    const fecha    = new Date(r.fecha_parto_estimada + 'T12:00:00');
-    const dias     = Math.round((fecha - hoy) / (1000 * 60 * 60 * 24));
-    const urgencia = dias <= 7 ? '#C0392B' : dias <= 30 ? '#E67E22' : '#1B5E35';
+    const fecha = new Date(r.fecha_parto_estimada + 'T12:00:00');
+    const dias = Math.round((fecha - hoy) / (1000 * 60 * 60 * 24));
+    const urgencia = dias <= 7 ? '#C0392B' : dias <= 30 ? '#E67E22' : '#4A6741';
     return `
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;
-        background:var(--crema);border-radius:8px;margin-bottom:0.5rem;border-left:4px solid ${urgencia}">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;background:var(--crema);border-radius:8px;margin-bottom:0.5rem;border-left:4px solid ${urgencia}">
         <div>
           <strong style="color:var(--tierra)">${r.hembra?.identificador || '—'}</strong>
           <span style="color:var(--gris-calido);font-size:0.85rem;margin-left:0.5rem">${r.hembra?.nombre || ''}</span>
         </div>
         <div style="text-align:right">
           <div style="font-size:0.8rem;color:var(--gris-calido)">Parto estimado</div>
-          <div style="font-weight:700;color:${urgencia}">
-            ${formatDate(r.fecha_parto_estimada)} (${dias > 0 ? 'en ' + dias + ' días' : 'hoy o ya pasó'})
-          </div>
+          <div style="font-weight:700;color:${urgencia}">${formatDate(r.fecha_parto_estimada)} (${dias > 0 ? 'en ' + dias + ' días' : 'hoy o ya pasó'})</div>
         </div>
       </div>`;
   }).join('');
