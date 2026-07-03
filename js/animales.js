@@ -1,6 +1,6 @@
 // animales.js — Registro y gestión de animales
 
-const RAZAS_BASE = ['Pelibuey','Dorper','Blackbelly','Suffolk','Rambouillet','Katahdin','Merino','Corriedale'];
+const RAZAS_BASE = ['Pelifok','Dorper','Kathadin'];
 var razasCache = [...RAZAS_BASE];
 
 async function loadRazas() {
