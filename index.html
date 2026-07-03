@@ -276,7 +276,7 @@
       <div class="form-grid">
         <div class="form-group">
           <label>Identificador *</label>
-          <input type="text" id="a-identificador" placeholder="Ej: A-001">
+          <input type="text" id="a-identificador" placeholder="Ej: B-001">
         </div>
         <div class="form-group">
           <label>Nombre</label>
@@ -292,14 +292,20 @@
         </div>
         <div class="form-group">
           <label>Raza</label>
-          <input type="text" id="a-raza" placeholder="Ej: Pelibuey">
+          <select id="a-raza" onchange="onRazaChange()">
+            <option value="">Seleccionar raza...</option>
+          </select>
         </div>
         <div class="form-group">
           <label>Fecha de Nacimiento</label>
           <input type="date" id="a-nacimiento">
         </div>
         <div class="form-group">
-          <label>Estado</label>
+          <label>Peso Inicial (kg)</label>
+          <input type="number" id="a-peso-inicial" step="0.01" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Estado General</label>
           <select id="a-estado">
             <option value="activo">Activo</option>
             <option value="vendido">Vendido</option>
@@ -307,18 +313,108 @@
           </select>
         </div>
         <div class="form-group">
+          <label>Estado Productivo</label>
+          <select id="a-estado-productivo">
+            <option value="">Seleccionar...</option>
+            <option value="gestante">Gestante (cargada)</option>
+            <option value="parida">Parida</option>
+            <option value="servicio">Servicio</option>
+            <option value="primala">Primala (jovencita 5-8 meses)</option>
+            <option value="cordera">Cordera (4 meses)</option>
+            <option value="lactando">Lactando</option>
+            <option value="destetada">Destetada</option>
+            <option value="semental">Semental</option>
+            <option value="engorda">Engorda</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Número de Partos</label>
+          <input type="number" id="a-num-partos" min="0" placeholder="0">
+        </div>
+        <div class="form-group">
+          <label>Tipo de Nacimiento</label>
+          <select id="a-tipo-nacimiento">
+            <option value="">Seleccionar...</option>
+            <option value="sencillo">Parto Sencillo</option>
+            <option value="doble">Parto Doble</option>
+            <option value="triple">Parto Triple</option>
+          </select>
+        </div>
+        <div class="form-group">
           <label>Padre</label>
-          <select id="a-padre"><option value="">Ninguno</option></select>
+          <select id="a-padre" onchange="togglePadreManual()"><option value="">Ninguno (registrar manualmente)</option></select>
+        </div>
+        <div class="form-group" id="wrap-padre-manual">
+          <label>Nombre del Padre (manual)</label>
+          <input type="text" id="a-padre-manual" placeholder="Nombre si no está registrado">
         </div>
         <div class="form-group">
           <label>Madre</label>
-          <select id="a-madre"><option value="">Ninguna</option></select>
+          <select id="a-madre" onchange="toggleMadreManual()"><option value="">Ninguna (registrar manualmente)</option></select>
+        </div>
+        <div class="form-group" id="wrap-madre-manual">
+          <label>Nombre de la Madre (manual)</label>
+          <input type="text" id="a-madre-manual" placeholder="Nombre si no está registrada">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Notas Generales</label>
+          <textarea id="a-notas" rows="2" placeholder="Observaciones generales del animal..."></textarea>
         </div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn" style="background:var(--crema-oscuro);color:var(--marron-oscuro)" onclick="closeModal('modal-animal')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveAnimal()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar Animal -->
+<div class="modal-overlay" id="modal-edit-animal">
+  <div class="modal">
+    <div class="modal-header">
+      <span>✏️ Editar Animal</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-animal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="ea-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Identificador *</label><input type="text" id="ea-identificador"></div>
+        <div class="form-group"><label>Nombre</label><input type="text" id="ea-nombre"></div>
+        <div class="form-group"><label>Sexo *</label>
+          <select id="ea-sexo"><option value="">Seleccionar...</option><option value="macho">Macho</option><option value="hembra">Hembra</option></select></div>
+        <div class="form-group"><label>Raza</label><select id="ea-raza"></select></div>
+        <div class="form-group"><label>Fecha de Nacimiento</label><input type="date" id="ea-nacimiento"></div>
+        <div class="form-group"><label>Estado General</label>
+          <select id="ea-estado"><option value="activo">Activo</option><option value="vendido">Vendido</option><option value="muerto">Muerto</option></select></div>
+        <div class="form-group"><label>Estado Productivo</label>
+          <select id="ea-estado-productivo">
+            <option value="">Ninguno</option>
+            <option value="gestante">Gestante (cargada)</option>
+            <option value="parida">Parida</option>
+            <option value="servicio">Servicio</option>
+            <option value="primala">Primala (5-8 meses)</option>
+            <option value="cordera">Cordera (4 meses)</option>
+            <option value="lactando">Lactando</option>
+            <option value="destetada">Destetada</option>
+            <option value="semental">Semental</option>
+            <option value="engorda">Engorda</option>
+          </select></div>
+        <div class="form-group"><label>Número de Partos</label><input type="number" id="ea-num-partos" min="0" placeholder="0"></div>
+        <div class="form-group"><label>Tipo de Nacimiento</label>
+          <select id="ea-tipo-nacimiento">
+            <option value="">Ninguno</option>
+            <option value="sencillo">Parto Sencillo</option>
+            <option value="doble">Parto Doble</option>
+            <option value="triple">Parto Triple</option>
+          </select></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Notas Generales</label>
+          <textarea id="ea-notas" rows="2" placeholder="Observaciones..."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:var(--crema-oscuro);color:var(--marron-oscuro)" onclick="closeModal('modal-edit-animal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="updateAnimal()">💾 Guardar Cambios</button>
     </div>
   </div>
 </div>
@@ -363,6 +459,10 @@
         <div class="form-group" style="grid-column:1/-1">
           <label>Observaciones</label>
           <textarea id="r-observaciones" rows="2" placeholder="Notas adicionales..."></textarea>
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Notas Generales</label>
+          <textarea id="r-notas-repro" rows="2" placeholder="Notas del empadre..."></textarea>
         </div>
       </div>
     </div>
@@ -493,6 +593,10 @@
           <label>Observaciones</label>
           <textarea id="s-observaciones" rows="2" placeholder="Notas adicionales..."></textarea>
         </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Notas Generales</label>
+          <textarea id="s-notas" rows="2" placeholder="Notas generales del evento..."></textarea>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -522,6 +626,10 @@
         <div class="form-group">
           <label>Total ($)</label>
           <input type="number" id="v-total" step="0.01" placeholder="0.00">
+        </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Notas</label>
+          <textarea id="v-notas" rows="2" placeholder="Observaciones de la venta..."></textarea>
         </div>
       </div>
     </div>
@@ -557,6 +665,10 @@
           <label>Peso (kg)</label>
           <input type="number" id="d-peso" step="0.01" placeholder="0.00">
         </div>
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Notas</label>
+          <textarea id="d-notas" rows="2" placeholder="Observaciones..."></textarea>
+        </div>
       </div>
     </div>
     <div class="modal-footer">
@@ -569,6 +681,94 @@
 <!-- TOAST -->
 <div class="toast" id="toast"></div>
 
+
+
+<!-- Modal Editar Venta -->
+<div class="modal-overlay" id="modal-edit-venta">
+  <div class="modal">
+    <div class="modal-header"><span>✏️ Editar Venta</span><button class="modal-close" onclick="closeModal('modal-edit-venta')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="ev-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Fecha *</label><input type="date" id="ev-fecha"></div>
+        <div class="form-group"><label>Cliente</label><input type="text" id="ev-cliente" placeholder="Nombre del cliente"></div>
+        <div class="form-group"><label>Total ($)</label><input type="number" id="ev-total" step="0.01" placeholder="0.00"></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Notas</label><textarea id="ev-notas" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:var(--crema-oscuro);color:var(--marron-oscuro)" onclick="closeModal('modal-edit-venta')">Cancelar</button>
+      <button class="btn btn-primary" onclick="updateVenta()">💾 Guardar Cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar Detalle Venta -->
+<div class="modal-overlay" id="modal-edit-detalle">
+  <div class="modal">
+    <div class="modal-header"><span>✏️ Editar Detalle Venta</span><button class="modal-close" onclick="closeModal('modal-edit-detalle')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="ed-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Venta</label><select id="ed-venta"></select></div>
+        <div class="form-group"><label>Precio ($)</label><input type="number" id="ed-precio" step="0.01" placeholder="0.00"></div>
+        <div class="form-group"><label>Peso (kg)</label><input type="number" id="ed-peso" step="0.01" placeholder="0.00"></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Notas</label><textarea id="ed-notas" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:var(--crema-oscuro);color:var(--marron-oscuro)" onclick="closeModal('modal-edit-detalle')">Cancelar</button>
+      <button class="btn btn-primary" onclick="updateDetalle()">💾 Guardar Cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar Salud -->
+<div class="modal-overlay" id="modal-edit-salud">
+  <div class="modal">
+    <div class="modal-header"><span>✏️ Editar Evento de Salud</span><button class="modal-close" onclick="closeModal('modal-edit-salud')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="es-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Fecha *</label><input type="date" id="es-fecha"></div>
+        <div class="form-group"><label>Tipo *</label>
+          <select id="es-tipo">
+            <option value="enfermedad">Enfermedad</option><option value="vacuna">Vacuna</option>
+            <option value="tratamiento">Tratamiento</option><option value="desparasitacion">Desparasitación</option>
+          </select></div>
+        <div class="form-group"><label>Medicamento</label><input type="text" id="es-medicamento"></div>
+        <div class="form-group"><label>Dosis</label><input type="text" id="es-dosis"></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Diagnóstico</label><textarea id="es-diagnostico" rows="2"></textarea></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Tratamiento</label><textarea id="es-tratamiento" rows="2"></textarea></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Observaciones</label><textarea id="es-observaciones" rows="2"></textarea></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Notas Generales</label><textarea id="es-notas" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:var(--crema-oscuro);color:var(--marron-oscuro)" onclick="closeModal('modal-edit-salud')">Cancelar</button>
+      <button class="btn btn-primary" onclick="updateSalud()">💾 Guardar Cambios</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Editar Produccion -->
+<div class="modal-overlay" id="modal-edit-produccion">
+  <div class="modal">
+    <div class="modal-header"><span>✏️ Editar Peso</span><button class="modal-close" onclick="closeModal('modal-edit-produccion')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="ep2-id">
+      <div class="form-grid">
+        <div class="form-group"><label>Fecha *</label><input type="date" id="ep2-fecha"></div>
+        <div class="form-group"><label>Peso (kg)</label><input type="number" id="ep2-peso" step="0.01"></div>
+        <div class="form-group" style="grid-column:1/-1"><label>Observaciones</label><textarea id="ep2-obs" rows="2"></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" style="background:var(--crema-oscuro);color:var(--marron-oscuro)" onclick="closeModal('modal-edit-produccion')">Cancelar</button>
+      <button class="btn btn-primary" onclick="updateProduccion()">💾 Guardar Cambios</button>
+    </div>
+  </div>
+</div>
 
 </div><!-- /app-shell -->
 
