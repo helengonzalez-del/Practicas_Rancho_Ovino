@@ -37,6 +37,7 @@ async function saveVenta() {
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast('✅ Venta registrada');
   closeModal('modal-venta');
+  loadVentas();
 }
 
 function openEditVenta(id, fecha, cliente, total, notas) {
@@ -109,6 +110,7 @@ async function saveDetalle() {
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast('✅ Detalle registrado');
   closeModal('modal-detalle');
+  loadDetalleVenta();
 }
 
 function openEditDetalle(id, idVenta, idAnimal, precio, peso, notas) {

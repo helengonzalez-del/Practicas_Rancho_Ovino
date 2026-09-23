@@ -45,6 +45,7 @@ async function saveReproduccion() {
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast('✅ Empadre registrado');
   closeModal('modal-reproduccion');
+  loadReproduccion();
 }
 
 function openEditParto(id, partoReal, crias, estado, notas) {

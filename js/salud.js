@@ -44,6 +44,7 @@ async function saveSalud() {
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast('✅ Evento de salud registrado');
   closeModal('modal-salud');
+  loadSalud();
 }
 
 async function openEditSalud(id) {

@@ -36,6 +36,7 @@ async function saveProduccion() {
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast('✅ Peso registrado');
   closeModal('modal-produccion');
+  loadProduccion();
 }
 
 function openEditProduccion(id, fecha, peso, obs) {
