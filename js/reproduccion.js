@@ -48,8 +48,11 @@ async function saveReproduccion() {
   loadReproduccion();
 }
 
-function openEditParto(id, partoReal, crias, estado, notas) {
+function openEditParto(id, idHembra, idMacho, fechaEmpadre, partoReal, crias, estado, notas) {
   document.getElementById('ep-id').value            = id;
+  document.getElementById('ep-hembra').value        = idHembra;
+  document.getElementById('ep-macho').value         = idMacho;
+  document.getElementById('ep-empadre').value       = fechaEmpadre;
   document.getElementById('ep-parto-real').value    = partoReal;
   document.getElementById('ep-crias').value         = crias;
   document.getElementById('ep-estado').value        = estado;
@@ -60,14 +63,18 @@ function openEditParto(id, partoReal, crias, estado, notas) {
 async function updateParto() {
   const id = document.getElementById('ep-id').value;
   const payload = {
-    fecha_parto_real: document.getElementById('ep-parto-real').value || null,
-    numero_crias:     document.getElementById('ep-crias').value ? parseInt(document.getElementById('ep-crias').value) : null,
-    estado:           document.getElementById('ep-estado').value,
-    notas:            document.getElementById('ep-observaciones').value || null,
+    id_hembra:       document.getElementById('ep-hembra').value || null,
+    id_macho:        document.getElementById('ep-macho').value || null,
+    fecha_empadre:   document.getElementById('ep-empadre').value || null,
+    fecha_parto_real:document.getElementById('ep-parto-real').value || null,
+    numero_crias:    document.getElementById('ep-crias').value ? parseInt(document.getElementById('ep-crias').value) : null,
+    estado:          document.getElementById('ep-estado').value,
+    notas:           document.getElementById('ep-observaciones').value || null,
   };
   const { error } = await db.from('reproduccion').update(payload).eq('id', id);
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
-  showToast('✅ Parto actualizado');
+  showToast('✅ Reproducción actualizada');
   closeModal('modal-editar-parto');
   loadReproduccion();
 }
+
