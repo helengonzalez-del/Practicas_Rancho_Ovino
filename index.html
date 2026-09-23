@@ -622,82 +622,158 @@
   <div class="modal">
     <div class="modal-header">
       <span>💰 Nueva Venta</span>
-      <button class="modal-close" onclick="closeModal('modal-venta')">✕</button>
+      <button class="modal-close" type="button" onclick="closeModal('modal-venta')">✕</button>
     </div>
+
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-group"><label>Fecha *</label><input type="date" id="v-fecha"></div>
-        <div class="form-group"><label>Cliente</label><input type="text" id="v-cliente"></div>
-        <div class="form-group"><label>Tipo de Venta *</label>
-          <select id="v-tipo" onchange="toggleVentaFields.call(this)">
+
+        <div class="form-group">
+          <label>Fecha *</label>
+          <input type="date" id="v-fecha" required>
+        </div>
+
+        <div class="form-group">
+          <label>Cliente</label>
+          <input type="text" id="v-cliente" placeholder="Nombre del cliente">
+        </div>
+
+        <div class="form-group">
+          <label>Tipo de Venta *</label>
+          <select id="v-tipo" onchange="toggleVentaFields(this)" required>
             <option value="">Seleccionar...</option>
             <option value="carne">Carne</option>
             <option value="pie_cria">Pie de Cría</option>
           </select>
         </div>
-        <div class="form-group"><label>Ingreso ($)</label><input type="number" id="v-ingreso" step="0.01"></div>
-        <div class="form-group"><label>Costo ($)</label><input type="number" id="v-costo" step="0.01"></div>
-        <!-- Campos solo para carne -->
-        <div class="form-group carne-only"><label>Peso Vendido (kg)</label><input type="number" id="v-peso-vendido" step="0.1"></div>
-        <div class="form-group carne-only"><label>Peso Real (kg)</label><input type="number" id="v-peso-real" step="0.1"></div>
-        <!-- Campos solo para pie de cría -->
-        <div class="form-group pie-only"><label>Cantidad Animales</label><input type="number" id="v-cantidad" min="1"></div>
-        <!-- Selección de borregos vendidos -->
-        <div class="form-group carne-only pie-only" style="grid-column:1/-1">
-          <label>Borregos Vendidos *</label>
-          <select id="v-animales" multiple><option value="">Seleccionar...</option></select>
+
+        <div class="form-group">
+          <label>Ingreso ($)</label>
+          <input type="number" id="v-ingreso" min="0" step="0.01">
         </div>
-        <div class="form-group" style="grid-column:1/-1"><label>Notas</label><textarea id="v-notas" rows="2"></textarea></div>
+
+        <div class="form-group">
+          <label>Costo ($)</label>
+          <input type="number" id="v-costo" min="0" step="0.01">
+        </div>
+
+        <div class="form-group carne-only">
+          <label>Peso Vendido (kg)</label>
+          <input type="number" id="v-peso-vendido" min="0" step="0.1">
+        </div>
+
+        <div class="form-group carne-only">
+          <label>Peso Real (kg)</label>
+          <input type="number" id="v-peso-real" min="0" step="0.1">
+        </div>
+
+        <div class="form-group pie-only">
+          <label>Cantidad de Animales</label>
+          <input type="number" id="v-cantidad" min="1" step="1">
+        </div>
+
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Borregos Vendidos</label>
+          <select id="v-animales" multiple size="6"></select>
+          <small>Mantén presionada Ctrl para seleccionar varios animales.</small>
+        </div>
+
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Notas</label>
+          <textarea id="v-notas" rows="2" placeholder="Observaciones..."></textarea>
+        </div>
+
       </div>
     </div>
+
     <div class="modal-footer">
-      <button class="btn" onclick="closeModal('modal-venta')">Cancelar</button>
-      <button class="btn btn-primary" onclick="saveVenta()">💾 Guardar</button>
+      <button class="btn" type="button" onclick="closeModal('modal-venta')">Cancelar</button>
+      <button class="btn btn-primary" type="button" onclick="saveVenta()">💾 Guardar</button>
     </div>
   </div>
 </div>
+
 
 <!-- Modal Editar Venta -->
 <div class="modal-overlay" id="modal-edit-venta">
   <div class="modal">
-    <div class="modal-header"><span>✏️ Editar Venta</span><button class="modal-close" onclick="closeModal('modal-edit-venta')">✕</button></div>
+    <div class="modal-header">
+      <span>✏️ Editar Venta</span>
+      <button class="modal-close" type="button" onclick="closeModal('modal-edit-venta')">✕</button>
+    </div>
+
     <div class="modal-body">
       <input type="hidden" id="ev-id">
+
       <div class="form-grid">
-        <div class="form-group"><label>Fecha *</label><input type="date" id="ev-fecha"></div>
-        <div class="form-group"><label>Cliente</label><input type="text" id="ev-cliente"></div>
-        <div class="form-group"><label>Tipo de Venta *</label>
-          <select id="ev-tipo" onchange="toggleVentaFields.call(this)">
+
+        <div class="form-group">
+          <label>Fecha *</label>
+          <input type="date" id="ev-fecha" required>
+        </div>
+
+        <div class="form-group">
+          <label>Cliente</label>
+          <input type="text" id="ev-cliente" placeholder="Nombre del cliente">
+        </div>
+
+        <div class="form-group">
+          <label>Tipo de Venta *</label>
+          <select id="ev-tipo" onchange="toggleVentaFields(this)" required>
             <option value="">Seleccionar...</option>
             <option value="carne">Carne</option>
             <option value="pie_cria">Pie de Cría</option>
           </select>
         </div>
-        <div class="form-group"><label>Ingreso ($)</label><input type="number" id="ev-ingreso" step="0.01"></div>
-        <div class="form-group"><label>Costo ($)</label><input type="number" id="ev-costo" step="0.01"></div>
-        <!-- Campos solo para carne -->
-        <div class="form-group carne-only"><label>Peso Vendido (kg)</label><input type="number" id="ev-peso-vendido" step="0.1"></div>
-        <div class="form-group carne-only"><label>Peso Real (kg)</label><input type="number" id="ev-peso-real" step="0.1"></div>
-        <!-- Campos solo para pie de cría -->
-        <div class="form-group pie-only"><label>Cantidad Animales</label><input type="number" id="ev-cantidad" min="1"></div>
-        <!-- Selección de borregos vendidos -->
-        <div class="form-group carne-only pie-only" style="grid-column:1/-1">
-          <label>Borregos Vendidos *</label>
-          <select id="ev-animales" multiple><option value="">Seleccionar...</option></select>
+
+        <div class="form-group">
+          <label>Ingreso ($)</label>
+          <input type="number" id="ev-ingreso" min="0" step="0.01">
         </div>
-        <div class="form-group" style="grid-column:1/-1"><label>Notas</label><textarea id="ev-notas" rows="2"></textarea></div>
+
+        <div class="form-group">
+          <label>Costo ($)</label>
+          <input type="number" id="ev-costo" min="0" step="0.01">
+        </div>
+
+        <div class="form-group carne-only">
+          <label>Peso Vendido (kg)</label>
+          <input type="number" id="ev-peso-vendido" min="0" step="0.1">
+        </div>
+
+        <div class="form-group carne-only">
+          <label>Peso Real (kg)</label>
+          <input type="number" id="ev-peso-real" min="0" step="0.1">
+        </div>
+
+        <div class="form-group pie-only">
+          <label>Cantidad de Animales</label>
+          <input type="number" id="ev-cantidad" min="1" step="1">
+        </div>
+
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Borregos Vendidos</label>
+          <select id="ev-animales" multiple size="6"></select>
+          <small>Mantén presionada Ctrl para seleccionar varios animales.</small>
+        </div>
+
+        <div class="form-group" style="grid-column:1/-1">
+          <label>Notas</label>
+          <textarea id="ev-notas" rows="2" placeholder="Observaciones..."></textarea>
+        </div>
+
       </div>
     </div>
+
     <div class="modal-footer">
-      <button class="btn" onclick="closeModal('modal-edit-venta')">Cancelar</button>
-      <button class="btn btn-primary" onclick="updateVenta()">💾 Guardar Cambios</button>
+      <button class="btn" type="button" onclick="closeModal('modal-edit-venta')">Cancelar</button>
+      <button class="btn btn-primary" type="button" onclick="updateVenta()">💾 Guardar Cambios</button>
     </div>
   </div>
 </div>
 
-<!-- TOAST -->
+<!-- Toast -->
 <div class="toast" id="toast"></div>
-
 
 <!-- Modal Editar Salud -->
 <div class="modal-overlay" id="modal-edit-salud">
