@@ -149,6 +149,10 @@ async function saveVenta() {
   closeModal('modal-venta');
   limpiarFormularioVenta();
   await loadVentas();
+
+  if (typeof loadAnimales === 'function') {
+    await loadAnimales();
+  }
 }
 
 async function openEditVenta(id) {
@@ -258,6 +262,10 @@ async function updateVenta() {
   showToast('✅ Venta actualizada');
   closeModal('modal-edit-venta');
   await loadVentas();
+
+  if (typeof loadAnimales === 'function') {
+    await loadAnimales();
+  }
 }
 
 function toggleVentaFields(selectElement = null) {
