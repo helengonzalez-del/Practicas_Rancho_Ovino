@@ -55,22 +55,30 @@ async function saveVenta() {
   if (tipo === 'pie_cria') {
     const cantidad = parseInt(document.getElementById('v-cantidad').value);
     payload.cantidad_animales = cantidad;
-    const ids = Array.from(document.getElementById('v-animales').selectedOptions).map(o => o.value);
-    if (ids && ids.length) {
-      await db.from('animales').update({ estado: 'vendido' }).in('id', ids);
+  }
+
+  const { data, error } = await db.from('ventas').insert(payload).select().single();
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+
+  // Guardar animales vendidos en tabla intermedia
+  const ids = Array.from(document.getElementById('v-animales').selectedOptions).map(o => o.value);
+  if (ids && ids.length) {
+    for (const animalId of ids) {
+      await db.from('venta_animales').insert({ venta_id: data.id, animal_id: animalId });
+      await db.from('animales').update({ estado: 'vendido' }).eq('id', animalId);
     }
   }
 
-  const { error } = await db.from('ventas').insert(payload);
-  if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast('✅ Venta registrada');
   closeModal('modal-venta');
   loadVentas();
 }
 
-function openEditVenta(id) {
+async function openEditVenta(id) {
   const v = ventasCache.find(x => x.id === id);
   if (!v) return;
+
+  // Poblar datos básicos
   document.getElementById('ev-id').value      = v.id;
   document.getElementById('ev-fecha').value   = v.fecha || '';
   document.getElementById('ev-cliente').value = v.cliente || '';
@@ -81,6 +89,16 @@ function openEditVenta(id) {
   document.getElementById('ev-peso-real').value    = v.peso_real ?? '';
   document.getElementById('ev-cantidad').value     = v.cantidad_animales ?? '';
   document.getElementById('ev-notas').value        = v.notas || '';
+
+  // Poblar animales vendidos
+  const { data } = await db.from('venta_animales').select('animal_id').eq('venta_id', id);
+  const evAnimales = document.getElementById('ev-animales');
+  if (data && data.length) {
+    Array.from(evAnimales.options).forEach(opt => {
+      opt.selected = data.some(a => a.animal_id === opt.value);
+    });
+  }
+
   toggleVentaFields.call(document.getElementById('ev-tipo'));
   openModal('modal-edit-venta');
 }
@@ -108,14 +126,21 @@ async function updateVenta() {
   if (tipo === 'pie_cria') {
     const cantidad = parseInt(document.getElementById('ev-cantidad').value);
     payload.cantidad_animales = cantidad;
-    const ids = Array.from(document.getElementById('ev-animales').selectedOptions).map(o => o.value);
-    if (ids && ids.length) {
-      await db.from('animales').update({ estado: 'vendido' }).in('id', ids);
-    }
   }
 
   const { error } = await db.from('ventas').update(payload).eq('id', id);
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
+
+  // Actualizar animales vendidos
+  const ids = Array.from(document.getElementById('ev-animales').selectedOptions).map(o => o.value);
+  await db.from('venta_animales').delete().eq('venta_id', id);
+  if (ids && ids.length) {
+    for (const animalId of ids) {
+      await db.from('venta_animales').insert({ venta_id: id, animal_id: animalId });
+      await db.from('animales').update({ estado: 'vendido' }).eq('id', animalId);
+    }
+  }
+
   showToast('✅ Venta actualizada');
   closeModal('modal-edit-venta');
   loadVentas();
@@ -128,5 +153,6 @@ function toggleVentaFields() {
   form.querySelectorAll('.carne-only').forEach(el => el.style.display = tipo === 'carne' ? 'block' : 'none');
   form.querySelectorAll('.pie-only').forEach(el => el.style.display = tipo === 'pie_cria' ? 'block' : 'none');
 }
+
 
 

@@ -642,7 +642,9 @@
         <div class="form-group carne-only"><label>Peso Real (kg)</label><input type="number" id="v-peso-real" step="0.1"></div>
         <!-- Campos solo para pie de cría -->
         <div class="form-group pie-only"><label>Cantidad Animales</label><input type="number" id="v-cantidad" min="1"></div>
-        <div class="form-group pie-only"><label>Borregos Vendidos *</label>
+        <!-- Selección de borregos vendidos -->
+        <div class="form-group carne-only pie-only" style="grid-column:1/-1">
+          <label>Borregos Vendidos *</label>
           <select id="v-animales" multiple><option value="">Seleccionar...</option></select>
         </div>
         <div class="form-group" style="grid-column:1/-1"><label>Notas</label><textarea id="v-notas" rows="2"></textarea></div>
@@ -678,7 +680,9 @@
         <div class="form-group carne-only"><label>Peso Real (kg)</label><input type="number" id="ev-peso-real" step="0.1"></div>
         <!-- Campos solo para pie de cría -->
         <div class="form-group pie-only"><label>Cantidad Animales</label><input type="number" id="ev-cantidad" min="1"></div>
-        <div class="form-group pie-only"><label>Borregos Vendidos *</label>
+        <!-- Selección de borregos vendidos -->
+        <div class="form-group carne-only pie-only" style="grid-column:1/-1">
+          <label>Borregos Vendidos *</label>
           <select id="ev-animales" multiple><option value="">Seleccionar...</option></select>
         </div>
         <div class="form-group" style="grid-column:1/-1"><label>Notas</label><textarea id="ev-notas" rows="2"></textarea></div>
