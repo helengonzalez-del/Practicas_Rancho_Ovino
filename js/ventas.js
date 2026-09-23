@@ -111,6 +111,7 @@ async function saveDetalle() {
   showToast('✅ Detalle registrado');
   closeModal('modal-detalle');
   loadDetalleVenta();
+  loadAnimales();
 }
 
 function openEditDetalle(id, idVenta, idAnimal, precio, peso, notas) {
@@ -136,4 +137,5 @@ async function updateDetalle() {
   showToast('✅ Detalle actualizado');
   closeModal('modal-edit-detalle');
   loadDetalleVenta();
+  loadAnimales();
 }
