@@ -57,6 +57,7 @@ function openEditParto(id, idHembra, idMacho, fechaEmpadre, partoReal, crias, es
   document.getElementById('ep-crias').value         = crias;
   document.getElementById('ep-estado').value        = estado;
   document.getElementById('ep-observaciones').value = notas;
+  populateAnimalSelects();
   openModal('modal-editar-parto');
 }
 

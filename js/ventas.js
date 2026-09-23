@@ -55,7 +55,7 @@ async function saveVenta() {
   if (tipo === 'pie_cria') {
     const cantidad = parseInt(document.getElementById('v-cantidad').value);
     payload.cantidad_animales = cantidad;
-    const ids = getSelectedAnimalIds(); // función que obtenga los seleccionados
+    const ids = Array.from(document.getElementById('v-animales').selectedOptions).map(o => o.value);
     if (ids && ids.length) {
       await db.from('animales').update({ estado: 'vendido' }).in('id', ids);
     }
@@ -108,7 +108,7 @@ async function updateVenta() {
   if (tipo === 'pie_cria') {
     const cantidad = parseInt(document.getElementById('ev-cantidad').value);
     payload.cantidad_animales = cantidad;
-    const ids = getSelectedAnimalIds(); // función que obtenga los seleccionados
+    const ids = Array.from(document.getElementById('ev-animales').selectedOptions).map(o => o.value);
     if (ids && ids.length) {
       await db.from('animales').update({ estado: 'vendido' }).in('id', ids);
     }
@@ -128,4 +128,5 @@ function toggleVentaFields() {
   form.querySelectorAll('.carne-only').forEach(el => el.style.display = tipo === 'carne' ? 'block' : 'none');
   form.querySelectorAll('.pie-only').forEach(el => el.style.display = tipo === 'pie_cria' ? 'block' : 'none');
 }
+
 
