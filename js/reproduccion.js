@@ -49,6 +49,9 @@ async function saveReproduccion() {
 }
 
 function openEditParto(id, idHembra, idMacho, fechaEmpadre, partoReal, crias, estado, notas) {
+  // poblar selects de hembra y macho
+  populateAnimalSelects(); // función que llena los <select> con animales
+
   document.getElementById('ep-id').value            = id;
   document.getElementById('ep-hembra').value        = idHembra;
   document.getElementById('ep-macho').value         = idMacho;
@@ -57,9 +60,9 @@ function openEditParto(id, idHembra, idMacho, fechaEmpadre, partoReal, crias, es
   document.getElementById('ep-crias').value         = crias;
   document.getElementById('ep-estado').value        = estado;
   document.getElementById('ep-observaciones').value = notas;
-  populateAnimalSelects();
   openModal('modal-editar-parto');
 }
+
 
 async function updateParto() {
   const id = document.getElementById('ep-id').value;
