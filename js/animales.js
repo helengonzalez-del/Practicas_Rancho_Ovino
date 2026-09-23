@@ -197,6 +197,9 @@ async function openEditAnimal(id) {
   renderRazasSelect('ea-raza');
   document.getElementById('ea-raza').value = a.raza || '';
 
+  // ✅ Poblar selects de animales antes de abrir el modal
+  populateAnimalSelects();
+  
   openModal('modal-edit-animal');
 }
 
