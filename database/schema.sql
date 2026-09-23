@@ -1,6 +1,5 @@
 -- =============================================
 -- SCHEMA.SQL — Rancho Ovino
--- Ejecuta este archivo en Supabase > SQL Editor
 -- =============================================
 
 create extension if not exists "pgcrypto";

@@ -1,6 +1,5 @@
 -- ============================================
 -- ACTUALIZACIÓN DE BASE DE DATOS — Rancho Ovino v2
--- Ejecuta en Supabase > SQL Editor
 -- ============================================
 
 -- Agregar nuevos campos a la tabla animales
@@ -16,7 +15,6 @@ ALTER TABLE animales
   ADD COLUMN IF NOT EXISTS peso_inicial numeric(6,2);
 
 -- Actualizar el CHECK de estado para incluir más opciones
--- (el estado original activo/vendido/muerto se mantiene igual)
 
 -- Crear tabla de razas personalizadas
 CREATE TABLE IF NOT EXISTS razas (
