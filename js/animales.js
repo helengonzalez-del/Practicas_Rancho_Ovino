@@ -170,7 +170,7 @@ function toggleMadreManual() {
   if (wrap) wrap.style.display = (!sel || sel.value === '') ? 'block' : 'none';
 }
 
-// ✅ Fix: poblar raza correctamente en edición
+// ✅ Reemplazar la función openEditAnimal por esta
 async function openEditAnimal(id) {
   const { data: a, error } = await db.from('animales').select('*').eq('id', id).single();
   if (error || !a) { showToast('Error cargando animal', 'error'); return; }
@@ -186,18 +186,26 @@ async function openEditAnimal(id) {
   document.getElementById('ea-tipo-nacimiento').value = a.tipo_nacimiento || '';
   document.getElementById('ea-notas').value           = a.notas || '';
 
-  // ✅ Fix 2: poblar razas y seleccionar la del animal
+  // ✅ Poblar padre/madre y peso inicial
+  document.getElementById('ea-padre').value           = a.id_padre || '';
+  document.getElementById('ea-madre').value           = a.id_madre || '';
+  document.getElementById('ea-padre-manual').value    = a.nombre_padre || '';
+  document.getElementById('ea-madre-manual').value    = a.nombre_madre || '';
+  document.getElementById('ea-peso-inicial').value    = a.peso_inicial ?? '';
+
+  // ✅ Poblar razas y seleccionar la del animal
   renderRazasSelect('ea-raza');
   document.getElementById('ea-raza').value = a.raza || '';
 
   openModal('modal-edit-animal');
 }
 
+// ✅ Reemplazar la función updateAnimal por esta
 async function updateAnimal() {
   const id      = document.getElementById('ea-id').value;
   const razaVal = document.getElementById('ea-raza').value;
 
-  // ✅ Fix 1: si eligió nueva raza, procesarla primero
+  // ✅ Si eligió nueva raza, procesarla primero
   if (razaVal === '__nueva__') {
     await onRazaChange('ea-raza');
     return;
@@ -214,15 +222,25 @@ async function updateAnimal() {
     numero_partos:    document.getElementById('ea-num-partos').value ? parseInt(document.getElementById('ea-num-partos').value) : 0,
     tipo_nacimiento:  document.getElementById('ea-tipo-nacimiento').value || null,
     notas:            document.getElementById('ea-notas').value.trim() || null,
+    id_padre:         document.getElementById('ea-padre').value || null,
+    id_madre:         document.getElementById('ea-madre').value || null,
+    nombre_padre:     document.getElementById('ea-padre-manual').value.trim() || null,
+    nombre_madre:     document.getElementById('ea-madre-manual').value.trim() || null,
+    peso_inicial:     document.getElementById('ea-peso-inicial').value ? parseFloat(document.getElementById('ea-peso-inicial').value) : null,
   };
 
-  if (!payload.identificador || !payload.sexo) { showToast('Identificador y sexo son obligatorios', 'error'); return; }
+  if (!payload.identificador || !payload.sexo) { 
+    showToast('Identificador y sexo son obligatorios', 'error'); 
+    return; 
+  }
+
   const { error } = await db.from('animales').update(payload).eq('id', id);
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast('✅ Animal actualizado');
   closeModal('modal-edit-animal');
   loadAnimales();
 }
+
 
 function populateAnimalSelects() {
   const selects = ['a-padre','a-madre','r-hembra','r-macho','p-animal','s-animal','d-animal'];
