@@ -199,7 +199,7 @@ async function openEditAnimal(id) {
 
   // ✅ Poblar selects de animales antes de abrir el modal
   populateAnimalSelects();
-  
+
   openModal('modal-edit-animal');
 }
 
@@ -246,12 +246,20 @@ async function updateAnimal() {
 
 
 function populateAnimalSelects() {
-  const selects = ['a-padre','a-madre','r-hembra','r-macho','p-animal','s-animal','d-animal'];
+  const selects = [
+    'a-padre','a-madre',
+    'ea-padre','ea-madre', // ✅ agregar estos para edición
+    'r-hembra','r-macho','p-animal','s-animal','d-animal'
+  ];
   selects.forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     const current = el.value;
-    const label0 = id==='a-padre'?'Ninguno (registrar manualmente)':id==='a-madre'?'Ninguna (registrar manualmente)':'Seleccionar...';
+    const label0 = id==='a-padre' || id==='ea-padre'
+      ? 'Ninguno (registrar manualmente)'
+      : id==='a-madre' || id==='ea-madre'
+        ? 'Ninguna (registrar manualmente)'
+        : 'Seleccionar...';
     el.innerHTML = `<option value="">${label0}</option>` + animalesCache.map(a =>
       `<option value="${a.id}">${a.identificador}${a.nombre?' - '+a.nombre:''}</option>`).join('');
     el.value = current;
