@@ -383,7 +383,9 @@
         <div class="form-group"><label>Nombre</label><input type="text" id="ea-nombre"></div>
         <div class="form-group"><label>Sexo *</label>
           <select id="ea-sexo"><option value="">Seleccionar...</option><option value="macho">Macho</option><option value="hembra">Hembra</option></select></div>
-        <div class="form-group"><label>Raza</label><select id="ea-raza"></select></div>
+        <div class="form-group"><label>Raza</label>
+          <select id="ea-raza" onchange="onRazaChange('ea-raza')"></select>
+        </div>
         <div class="form-group"><label>Fecha de Nacimiento</label><input type="date" id="ea-nacimiento"></div>
         <div class="form-group"><label>Estado General</label>
           <select id="ea-estado"><option value="activo">Activo</option><option value="vendido">Vendido</option><option value="muerto">Muerto</option></select></div>

@@ -5,31 +5,42 @@ var razasCache = [...RAZAS_BASE];
 
 async function loadRazas() {
   const { data } = await db.from('razas').select('nombre').order('nombre');
-  if (data?.length) razasCache = data.map(r => r.nombre);
-  renderRazasSelect();
+  if (data?.length) {
+    const dbRazas = data.map(r => r.nombre);
+    razasCache = [...new Set([...RAZAS_BASE, ...dbRazas])].sort();
+  } else {
+    razasCache = [...RAZAS_BASE];
+  }
+  renderRazasSelect('a-raza');
+  renderRazasSelect('ea-raza'); // ✅ también poblar el select de edición
 }
 
-function renderRazasSelect() {
-  const sel = document.getElementById('a-raza');
+function renderRazasSelect(selectId) {
+  const sel = document.getElementById(selectId);
   if (!sel) return;
   const current = sel.value;
   sel.innerHTML = '<option value="">Seleccionar raza...</option>' +
     razasCache.map(r => `<option value="${r}">${r}</option>`).join('') +
     '<option value="__nueva__">➕ Agregar nueva raza...</option>';
-  if (current) sel.value = current;
+  if (current && current !== '__nueva__') sel.value = current;
 }
 
-async function onRazaChange() {
-  const sel = document.getElementById('a-raza');
-  if (sel.value !== '__nueva__') return;
+// ✅ Fix: recibe el selectId para saber desde cuál select se llamó
+async function onRazaChange(selectId) {
+  selectId = selectId || 'a-raza';
+  const sel = document.getElementById(selectId);
+  if (!sel || sel.value !== '__nueva__') return;
   const nueva = prompt('Nombre de la nueva raza:');
   if (!nueva || !nueva.trim()) { sel.value = ''; return; }
   const nombre = nueva.trim();
-  await db.from('razas').insert({ nombre }).select();
+  await db.from('razas').upsert({ nombre }).select();
   if (!razasCache.includes(nombre)) razasCache.push(nombre);
   razasCache.sort();
-  renderRazasSelect();
-  sel.value = nombre;
+  renderRazasSelect('a-raza');
+  renderRazasSelect('ea-raza');
+  // Restaurar selección en el select que disparó el cambio
+  const sel2 = document.getElementById(selectId);
+  if (sel2) sel2.value = nombre;
 }
 
 function calcularEdad(fechaNac) {
@@ -40,18 +51,12 @@ function calcularEdad(fechaNac) {
   let meses = hoy.getMonth() - nac.getMonth();
   if (meses < 0) { años--; meses += 12; }
   if (hoy.getDate() < nac.getDate()) meses--;
-  if (años > 0) return `${años} año${años>1?'s':''} ${meses>0?meses+'m':''}`.trim();
+  if (años > 0) return `${años} año${años>1?'s':''} ${meses>0?' '+meses+'m':''}`.trim();
   if (meses > 0) return `${meses} mes${meses>1?'es':''}`;
-  const dias = Math.floor((hoy - nac) / (1000*60*60*24));
+  const dias = Math.floor((hoy - nac)/(1000*60*60*24));
   return `${dias} día${dias!==1?'s':''}`;
 }
 
-const ESTADO_PROD_LABELS = {
-  gestante:'Gestante', parida:'Parida', servicio:'Servicio',
-  primala:'Primala', cordera:'Cordera', lactando:'Lactando',
-  destetada:'Destetada', semental:'Semental', engorda:'Engorda'
-};
-const TIPO_NAC_LABELS = { sencillo:'Sencillo', doble:'Doble', triple:'Triple' };
 const ESTADO_PROD_BADGES = {
   gestante:'badge-gestando', parida:'badge-pario', servicio:'badge-macho',
   primala:'badge-hembra', cordera:'badge-vendido', lactando:'badge-activo',
@@ -101,16 +106,17 @@ function renderAnimalesTable(data) {
 }
 
 async function saveAnimal() {
-  const padreVal = document.getElementById('a-padre').value;
-  const madreVal = document.getElementById('a-madre').value;
+  const padreVal    = document.getElementById('a-padre').value;
+  const madreVal    = document.getElementById('a-madre').value;
   const padreManual = document.getElementById('a-padre-manual').value.trim();
   const madreManual = document.getElementById('a-madre-manual').value.trim();
+  const razaVal     = document.getElementById('a-raza').value;
 
   const payload = {
     identificador:    document.getElementById('a-identificador').value.trim(),
     nombre:           document.getElementById('a-nombre').value.trim() || null,
     sexo:             document.getElementById('a-sexo').value,
-    raza:             document.getElementById('a-raza').value !== '__nueva__' ? document.getElementById('a-raza').value || null : null,
+    raza:             razaVal && razaVal !== '__nueva__' ? razaVal : null,
     fecha_nacimiento: document.getElementById('a-nacimiento').value || null,
     estado:           document.getElementById('a-estado').value,
     estado_productivo:document.getElementById('a-estado-productivo').value || null,
@@ -129,7 +135,6 @@ async function saveAnimal() {
   const { data, error } = await db.from('animales').insert(payload).select().single();
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
 
-  // Si hay peso inicial, registrar en produccion
   if (payload.peso_inicial && data) {
     const fecha = document.getElementById('a-nacimiento').value || new Date().toISOString().split('T')[0];
     await db.from('produccion').insert({ id_animal: data.id, fecha, peso: payload.peso_inicial, observaciones: 'Peso inicial al registro' });
@@ -138,68 +143,71 @@ async function saveAnimal() {
   showToast('✅ Animal registrado exitosamente');
   closeModal('modal-animal');
   resetAnimalForm();
+  loadAnimales();
 }
 
 function resetAnimalForm() {
-  ['a-identificador','a-nombre','a-raza','a-nacimiento','a-notas','a-peso-inicial','a-padre-manual','a-madre-manual','a-num-partos'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
+  ['a-identificador','a-nombre','a-nacimiento','a-notas','a-peso-inicial','a-padre-manual','a-madre-manual','a-num-partos'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
   });
-  ['a-sexo','a-estado','a-estado-productivo','a-tipo-nacimiento','a-padre','a-madre'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
+  ['a-sexo','a-estado-productivo','a-tipo-nacimiento','a-padre','a-madre'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
   });
+  document.getElementById('a-estado').value = 'activo';
+  renderRazasSelect('a-raza');
   togglePadreManual(); toggleMadreManual();
 }
 
 function togglePadreManual() {
   const sel = document.getElementById('a-padre');
-  const manual = document.getElementById('wrap-padre-manual');
-  if (manual) manual.style.display = sel && sel.value === '' ? 'block' : 'none';
+  const wrap = document.getElementById('wrap-padre-manual');
+  if (wrap) wrap.style.display = (!sel || sel.value === '') ? 'block' : 'none';
 }
 
 function toggleMadreManual() {
   const sel = document.getElementById('a-madre');
-  const manual = document.getElementById('wrap-madre-manual');
-  if (manual) manual.style.display = sel && sel.value === '' ? 'block' : 'none';
+  const wrap = document.getElementById('wrap-madre-manual');
+  if (wrap) wrap.style.display = (!sel || sel.value === '') ? 'block' : 'none';
 }
 
-// ---- EDITAR ANIMAL ----
+// ✅ Fix: poblar raza correctamente en edición
 async function openEditAnimal(id) {
   const { data: a, error } = await db.from('animales').select('*').eq('id', id).single();
-  if (error) { showToast('Error cargando animal', 'error'); return; }
+  if (error || !a) { showToast('Error cargando animal', 'error'); return; }
 
-  document.getElementById('ea-id').value             = a.id;
-  document.getElementById('ea-identificador').value  = a.identificador || '';
-  document.getElementById('ea-nombre').value         = a.nombre || '';
-  document.getElementById('ea-sexo').value           = a.sexo || '';
-  document.getElementById('ea-nacimiento').value     = a.fecha_nacimiento || '';
-  document.getElementById('ea-estado').value         = a.estado || 'activo';
+  document.getElementById('ea-id').value              = a.id;
+  document.getElementById('ea-identificador').value   = a.identificador || '';
+  document.getElementById('ea-nombre').value          = a.nombre || '';
+  document.getElementById('ea-sexo').value            = a.sexo || '';
+  document.getElementById('ea-nacimiento').value      = a.fecha_nacimiento || '';
+  document.getElementById('ea-estado').value          = a.estado || 'activo';
   document.getElementById('ea-estado-productivo').value = a.estado_productivo || '';
-  document.getElementById('ea-num-partos').value     = a.numero_partos ?? '';
-  document.getElementById('ea-tipo-nacimiento').value= a.tipo_nacimiento || '';
-  document.getElementById('ea-notas').value          = a.notas || '';
+  document.getElementById('ea-num-partos').value      = a.numero_partos ?? '';
+  document.getElementById('ea-tipo-nacimiento').value = a.tipo_nacimiento || '';
+  document.getElementById('ea-notas').value           = a.notas || '';
 
-  // Raza
-  await loadRazas();
-  const razaSel = document.getElementById('ea-raza');
-  razaSel.innerHTML = '<option value="">Seleccionar raza...</option>' +
-    razasCache.map(r => `<option value="${r}">${r}</option>`).join('') +
-    '<option value="__nueva__">➕ Agregar nueva raza...</option>';
-  razaSel.value = a.raza || '';
+  // ✅ Fix 2: poblar razas y seleccionar la del animal
+  renderRazasSelect('ea-raza');
+  document.getElementById('ea-raza').value = a.raza || '';
 
   openModal('modal-edit-animal');
 }
 
 async function updateAnimal() {
-  const id = document.getElementById('ea-id').value;
+  const id      = document.getElementById('ea-id').value;
   const razaVal = document.getElementById('ea-raza').value;
+
+  // ✅ Fix 1: si eligió nueva raza, procesarla primero
+  if (razaVal === '__nueva__') {
+    await onRazaChange('ea-raza');
+    return;
+  }
 
   const payload = {
     identificador:    document.getElementById('ea-identificador').value.trim(),
     nombre:           document.getElementById('ea-nombre').value.trim() || null,
     sexo:             document.getElementById('ea-sexo').value,
-    raza:             razaVal !== '__nueva__' ? razaVal || null : null,
+    raza:             razaVal && razaVal !== '__nueva__' ? razaVal : null,
     fecha_nacimiento: document.getElementById('ea-nacimiento').value || null,
     estado:           document.getElementById('ea-estado').value,
     estado_productivo:document.getElementById('ea-estado-productivo').value || null,
@@ -222,10 +230,9 @@ function populateAnimalSelects() {
     const el = document.getElementById(id);
     if (!el) return;
     const current = el.value;
-    const label0 = id === 'a-padre' ? 'Ninguno (registrar manualmente)' : id === 'a-madre' ? 'Ninguna (registrar manualmente)' : 'Seleccionar...';
+    const label0 = id==='a-padre'?'Ninguno (registrar manualmente)':id==='a-madre'?'Ninguna (registrar manualmente)':'Seleccionar...';
     el.innerHTML = `<option value="">${label0}</option>` + animalesCache.map(a =>
-      `<option value="${a.id}">${a.identificador}${a.nombre ? ' - ' + a.nombre : ''}</option>`
-    ).join('');
+      `<option value="${a.id}">${a.identificador}${a.nombre?' - '+a.nombre:''}</option>`).join('');
     el.value = current;
   });
   togglePadreManual();
