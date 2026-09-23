@@ -2,9 +2,14 @@
 
 async function loadReproduccion() {
   loading('table-reproduccion');
-  const { data, error } = await db.from('reproduccion').select(`*,hembra:id_hembra(identificador,nombre),macho:id_macho(identificador,nombre)`).order('created_at', { ascending: false });
+  const { data, error } = await db.from('reproduccion')
+    .select(`*,hembra:id_hembra(identificador,nombre),macho:id_macho(identificador,nombre)`)
+    .order('created_at', { ascending: false });
   if (error) { showToast('Error cargando reproducción', 'error'); return; }
-  if (!data || !data.length) { document.getElementById('table-reproduccion').innerHTML = emptyState('🐣', 'No hay registros de reproducción'); return; }
+  if (!data || !data.length) {
+    document.getElementById('table-reproduccion').innerHTML = emptyState('🐣', 'No hay registros de reproducción');
+    return;
+  }
   const rows = data.map(r => `
     <tr>
       <td>${r.hembra ? r.hembra.identificador : '—'}</td>
@@ -17,7 +22,8 @@ async function loadReproduccion() {
       <td>${r.notas || r.observaciones || '—'}</td>
       <td>
         <div style="display:flex;gap:0.3rem">
-          <button class="btn btn-edit" onclick="openEditParto('${r.id}','${r.fecha_parto_real||''}','${r.numero_crias??''}','${r.estado}','${(r.notas||r.observaciones||'').replace(/'/g,'')}')">✏️</button>
+          <button class="btn btn-edit"
+            onclick="openEditParto('${r.id}','${r.id_hembra}','${r.id_macho}','${r.fecha_empadre||''}','${r.fecha_parto_real||''}','${r.numero_crias??''}','${r.estado}','${(r.notas||r.observaciones||'').replace(/'/g,'')}')">✏️</button>
           <button class="btn btn-danger" onclick="deleteRecord('reproduccion','${r.id}',loadReproduccion)">🗑</button>
         </div>
       </td>
@@ -40,7 +46,9 @@ async function saveReproduccion() {
     observaciones:   document.getElementById('r-observaciones').value || null,
     notas:           document.getElementById('r-notas-repro').value.trim() || null,
   };
-  if (!payload.id_hembra || !payload.id_macho || !payload.fecha_empadre) { showToast('Hembra, macho y fecha son obligatorios', 'error'); return; }
+  if (!payload.id_hembra || !payload.id_macho || !payload.fecha_empadre) {
+    showToast('Hembra, macho y fecha son obligatorios', 'error'); return;
+  }
   const { error } = await db.from('reproduccion').insert(payload);
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast('✅ Empadre registrado');
@@ -50,19 +58,18 @@ async function saveReproduccion() {
 
 function openEditParto(id, idHembra, idMacho, fechaEmpadre, partoReal, crias, estado, notas) {
   // poblar selects de hembra y macho
-  populateAnimalSelects(); // función que llena los <select> con animales
-
-  document.getElementById('ep-id').value            = id;
-  document.getElementById('ep-hembra').value        = idHembra;
-  document.getElementById('ep-macho').value         = idMacho;
-  document.getElementById('ep-empadre').value       = fechaEmpadre;
-  document.getElementById('ep-parto-real').value    = partoReal;
-  document.getElementById('ep-crias').value         = crias;
-  document.getElementById('ep-estado').value        = estado;
-  document.getElementById('ep-observaciones').value = notas;
-  openModal('modal-editar-parto');
+  populateAnimalSelects().then(() => {
+    document.getElementById('ep-id').value            = id;
+    document.getElementById('ep-hembra').value        = idHembra;
+    document.getElementById('ep-macho').value         = idMacho;
+    document.getElementById('ep-empadre').value       = fechaEmpadre;
+    document.getElementById('ep-parto-real').value    = partoReal;
+    document.getElementById('ep-crias').value         = crias;
+    document.getElementById('ep-estado').value        = estado;
+    document.getElementById('ep-observaciones').value = notas;
+    openModal('modal-editar-parto');
+  });
 }
-
 
 async function updateParto() {
   const id = document.getElementById('ep-id').value;
@@ -82,3 +89,26 @@ async function updateParto() {
   loadReproduccion();
 }
 
+// Función para poblar selects de hembra y macho
+async function populateAnimalSelects() {
+  const { data, error } = await db.from('animales').select('id, identificador, nombre, sexo');
+  if (error) { showToast('Error cargando animales', 'error'); return; }
+
+  const hembras = data.filter(a => a.sexo === 'hembra');
+  const machos  = data.filter(a => a.sexo === 'macho');
+
+  const rHembra = document.getElementById('r-hembra');
+  const rMacho  = document.getElementById('r-macho');
+  const epHembra = document.getElementById('ep-hembra');
+  const epMacho  = document.getElementById('ep-macho');
+
+  [rHembra, epHembra].forEach(sel => {
+    sel.innerHTML = '<option value="">Seleccionar...</option>' +
+      hembras.map(h => `<option value="${h.id}">${h.identificador} - ${h.nombre||''}</option>`).join('');
+  });
+
+  [rMacho, epMacho].forEach(sel => {
+    sel.innerHTML = '<option value="">Seleccionar...</option>' +
+      machos.map(m => `<option value="${m.id}">${m.identificador} - ${m.nombre||''}</option>`).join('');
+  });
+}
