@@ -44,8 +44,18 @@ function emptyState(icon, msg) {
 // ============= DELETE =============
 async function deleteRecord(table, id, reloadFn) {
   if (!confirm('¿Seguro que deseas eliminar este registro?')) return;
+
+  // Si es detalle_venta, revertir estado del animal a activo
+  if (table === 'detalle_venta') {
+    const { data: detalle } = await db.from('detalle_venta').select('id_animal').eq('id', id).single();
+    if (detalle?.id_animal) {
+      await db.from('animales').update({ estado: 'activo' }).eq('id', detalle.id_animal);
+    }
+  }
+
   const { error } = await db.from(table).delete().eq('id', id);
   if (error) { showToast('Error al eliminar: ' + error.message, 'error'); return; }
   showToast('🗑 Registro eliminado');
   reloadFn();
+  if (table === 'detalle_venta') loadAnimales();
 }
