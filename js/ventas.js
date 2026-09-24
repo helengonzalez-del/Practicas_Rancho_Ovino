@@ -10,9 +10,22 @@ async function loadVentas() {
     document.getElementById('table-ventas').innerHTML = emptyState('💰', 'No hay ventas registradas');
     return;
   }
+
+  // ✅ Traer qué borregos están ligados a cada venta, para mostrarlo en la tabla
+  const { data: detallesTodos } = await db
+    .from('detalle_venta')
+    .select('id_venta, animal:id_animal(identificador,nombre)');
+  const borregosPorVenta = {};
+  (detallesTodos || []).forEach(d => {
+    if (!d.id_venta || !d.animal) return;
+    if (!borregosPorVenta[d.id_venta]) borregosPorVenta[d.id_venta] = [];
+    borregosPorVenta[d.id_venta].push(d.animal.identificador + (d.animal.nombre ? ' (' + d.animal.nombre + ')' : ''));
+  });
+
   const rows = data.map(v => {
     const tipo = v.tipo === 'carne' ? '🥩 Carne' : v.tipo === 'pie_cria' ? '🐑 Pie de Cría' : '—';
     const utilidad = ((v.ingreso||0) - (v.costo||0));
+    const borregosTxt = (borregosPorVenta[v.id] || []).join(', ') || '<span style="color:#B08900">Sin borrego asignado</span>';
     return `<tr>
       <td>${formatDate(v.fecha)}</td>
       <td>${v.cliente || '—'}</td>
@@ -21,6 +34,7 @@ async function loadVentas() {
       <td>${formatMoney(v.costo)}</td>
       <td><strong style="color:${utilidad>=0?'var(--verde)':'#C0392B'}">${formatMoney(utilidad)}</strong></td>
       <td>${v.notas || '—'}</td>
+      <td>${borregosTxt}</td>
       <td>
         <div style="display:flex;gap:0.3rem">
           <button class="btn btn-edit" onclick="openEditVenta('${v.id}')">✏️</button>
@@ -31,7 +45,7 @@ async function loadVentas() {
   }).join('');
   document.getElementById('table-ventas').innerHTML = `
     <table><thead><tr>
-      <th>Fecha</th><th>Cliente</th><th>Tipo</th><th>Ingreso</th><th>Costo</th><th>Utilidad</th><th>Notas</th><th>Acc.</th>
+      <th>Fecha</th><th>Cliente</th><th>Tipo</th><th>Ingreso</th><th>Costo</th><th>Utilidad</th><th>Notas</th><th>Borregos</th><th>Acc.</th>
     </tr></thead><tbody>${rows}</tbody></table>`;
   populateVentaSelect();
 }
@@ -273,17 +287,33 @@ async function updateVenta() {
   const quitados  = originales.filter(a => !selAnimalesNuevo.includes(a));
   const agregados = selAnimalesNuevo.filter(a => !originales.includes(a));
 
-  for (const animalId of quitados) {
-    await db.from('detalle_venta').delete().eq('id_venta', id).eq('id_animal', animalId);
-    await db.from('animales').update({ estado: 'activo' }).eq('id', animalId);
+  if (quitados.length) {
+    await db.from('detalle_venta').delete().eq('id_venta', id).in('id_animal', quitados);
+    const { data: reactivados, error: errQuit } = await db
+      .from('animales').update({ estado: 'activo' }).in('id', quitados).select('id');
+    if (errQuit) {
+      console.error('Error reactivando borregos quitados:', errQuit);
+      showToast('Error reactivando borregos: ' + errQuit.message, 'error');
+    } else if (!reactivados || reactivados.length !== quitados.length) {
+      console.warn('Se esperaban reactivar', quitados.length, 'y se reactivaron', reactivados?.length || 0);
+      showToast(`⚠️ Solo se reactivaron ${reactivados?.length || 0} de ${quitados.length} borrego(s) quitados.`, 'error');
+    }
   }
-  for (const animalId of agregados) {
-    await db.from('detalle_venta').insert({
+  if (agregados.length) {
+    await db.from('detalle_venta').insert(agregados.map(animalId => ({
       id_venta:  id,
       id_animal: animalId,
       precio: ingreso && selAnimalesNuevo.length ? parseFloat((ingreso / selAnimalesNuevo.length).toFixed(2)) : null,
-    });
-    await db.from('animales').update({ estado: 'vendido' }).eq('id', animalId);
+    })));
+    const { data: vendidos, error: errAgr } = await db
+      .from('animales').update({ estado: 'vendido' }).in('id', agregados).select('id');
+    if (errAgr) {
+      console.error('Error marcando borregos vendidos:', errAgr);
+      showToast('Error actualizando borregos: ' + errAgr.message, 'error');
+    } else if (!vendidos || vendidos.length !== agregados.length) {
+      console.warn('Se esperaban marcar vendidos', agregados.length, 'y se marcaron', vendidos?.length || 0);
+      showToast(`⚠️ Solo se marcaron ${vendidos?.length || 0} de ${agregados.length} borrego(s) agregados.`, 'error');
+    }
   }
 
   // ✅ Reflejar los cambios de estado en memoria al instante
@@ -304,19 +334,40 @@ async function updateVenta() {
 // ✅ Eliminar venta y revertir estado de animales
 async function deleteVenta(id) {
   if (!confirm('¿Seguro que deseas eliminar esta venta y revertir el estado de los animales?')) return;
-  const { data: detalles } = await db.from('detalle_venta').select('id_animal').eq('id_venta', id);
-  if (detalles?.length) {
-    for (const d of detalles) {
-      if (d.id_animal) await db.from('animales').update({ estado: 'activo' }).eq('id', d.id_animal);
+
+  const { data: detalles, error: errDet } = await db.from('detalle_venta').select('id_animal').eq('id_venta', id);
+  if (errDet) { showToast('Error leyendo los borregos de la venta: ' + errDet.message, 'error'); return; }
+
+  const idsAnimales = (detalles || []).map(d => d.id_animal).filter(Boolean);
+
+  if (idsAnimales.length) {
+    // ✅ Actualizamos todos de una vez y pedimos de vuelta las filas que
+    //    realmente se modificaron, para saber si de verdad se revirtieron
+    //    (antes no se revisaba esto y podía fallar en silencio).
+    const { data: actualizados, error: errUpd } = await db
+      .from('animales')
+      .update({ estado: 'activo' })
+      .in('id', idsAnimales)
+      .select('id');
+
+    if (errUpd) {
+      console.error('Error reactivando borregos:', errUpd);
+      showToast('Error reactivando borregos: ' + errUpd.message, 'error');
+      return;
     }
+    if (!actualizados || actualizados.length !== idsAnimales.length) {
+      console.warn('Se esperaban reactivar', idsAnimales.length, 'y se reactivaron', actualizados?.length || 0, idsAnimales, actualizados);
+      showToast(`⚠️ Solo se reactivaron ${actualizados?.length || 0} de ${idsAnimales.length} borrego(s). Revisa los permisos (RLS) de UPDATE en la tabla animales.`, 'error');
+    }
+
     // ✅ Reflejar de inmediato en memoria
-    const idsRevertidos = detalles.map(d => d.id_animal).filter(Boolean);
-    animalesCache.forEach(a => { if (idsRevertidos.includes(a.id)) a.estado = 'activo'; });
+    animalesCache.forEach(a => { if (idsAnimales.includes(a.id)) a.estado = 'activo'; });
     renderResumenBorregos();
   }
+
   const { error } = await db.from('ventas').delete().eq('id', id);
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
-  showToast('🗑 Venta eliminada');
+  showToast('🗑 Venta eliminada' + (idsAnimales.length ? ` — ${idsAnimales.length} borrego(s) reactivado(s)` : ''));
   // ✅ Esperamos a que ambas recargas terminen (antes se disparaban sin
   //    esperar, así que la tabla de Animales y el resumen podían tardar
   //    en reflejar el cambio, o quedarse con datos viejos).
