@@ -176,20 +176,22 @@ async function saveVenta() {
   const { data: venta, error } = await db.from('ventas').insert(payload).select().single();
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
 
-  // ✅ Guardar detalle y marcar animales como vendidos
-  // ✅ Guardar detalle y marcar animales como vendidos, revisando errores
-  //    en vez de ignorarlos silenciosamente
-  let erroresDetalle = 0;
-  for (const animalId of selAnimales) {
-    const { error: errIns } = await db.from('venta_animales').insert({
-      venta_id:  venta.id,
-      animal_id: animalId,
-    });
-    if (errIns) { console.error('Error vinculando borrego a la venta:', errIns); erroresDetalle++; continue; }
-    await db.from('animales').update({ estado: 'vendido' }).eq('id', animalId);
-  }
-  if (erroresDetalle > 0) {
-    showToast(`⚠️ La venta se guardó pero no se pudo vincular ${erroresDetalle} borrego(s). Revisa la consola.`, 'error');
+  // ✅ Guardar el vínculo venta↔borregos en una sola llamada (más fácil de
+  //    depurar) y, pase lo que pase con ese insert, igual marcamos los
+  //    animales como vendidos — así no se quedan a medias como antes.
+  if (selAnimales.length) {
+    const { error: errVA } = await db.from('venta_animales').insert(
+      selAnimales.map(animalId => ({ venta_id: venta.id, animal_id: animalId }))
+    );
+    if (errVA) {
+      console.error('Error vinculando borregos a la venta (venta_animales):', errVA);
+      showToast('⚠️ No se pudo vincular con los borregos: ' + (errVA.message || JSON.stringify(errVA)) + (errVA.hint ? ' — ' + errVA.hint : ''), 'error');
+    }
+    const { error: errEst } = await db.from('animales').update({ estado: 'vendido' }).in('id', selAnimales);
+    if (errEst) {
+      console.error('Error marcando borregos como vendidos:', errEst);
+      showToast('Error marcando borregos vendidos: ' + errEst.message, 'error');
+    }
   }
 
   // ✅ Reflejar el nuevo estado de los animales en memoria al instante
