@@ -35,8 +35,21 @@ async function loadVentas() {
   populateVentaSelect();
 }
 
+// ✅ Trae los animales más recientes desde la base y actualiza el cache local.
+// Se usa antes de abrir los modales de venta para no depender de que
+// loadAnimales() ya se haya ejecutado antes (por ejemplo si el usuario
+// entra directo a la pestaña Ventas sin pasar por Animales).
+async function refrescarAnimalesCache() {
+  const { data, error } = await db.from('animales').select('*').order('created_at', { ascending: false });
+  if (error) { showToast('Error cargando animales', 'error'); return animalesCache || []; }
+  animalesCache = data || [];
+  return animalesCache;
+}
+
 // ✅ Abrir modal y poblar animales activos
-function openModalVenta() {
+async function openModalVenta() {
+  await refrescarAnimalesCache();
+
   const sel = document.getElementById('v-animales');
   if (sel) {
     sel.innerHTML = animalesCache
@@ -93,7 +106,7 @@ async function saveVenta() {
     peso_vendido: tipo === 'carne' ? (parseFloat(document.getElementById('v-peso-vendido').value) || null) : null,
     peso_real:    tipo === 'carne' ? (parseFloat(document.getElementById('v-peso-real').value)    || null) : null,
     rendimiento:  tipo === 'carne' ? (parseFloat(document.getElementById('v-rendimiento').value)  || null) : null,
-    cantidad:     tipo === 'pie_cria' ? (parseInt(document.getElementById('v-cantidad').value)    || null) : null,
+    cantidad_animales: tipo === 'pie_cria' ? (parseInt(document.getElementById('v-cantidad').value) || null) : null,
     notas:        document.getElementById('v-notas').value.trim() || null,
   };
 
@@ -135,11 +148,15 @@ async function openEditVenta(id) {
   document.getElementById('ev-costo').value   = v.costo   || '';
   document.getElementById('ev-peso-vendido').value = v.peso_vendido != null ? v.peso_vendido : '';
   document.getElementById('ev-peso-real').value    = v.peso_real    != null ? v.peso_real    : '';
-  document.getElementById('ev-cantidad').value     = v.cantidad     != null ? v.cantidad     : '';
+  document.getElementById('ev-cantidad').value     = v.cantidad_animales != null ? v.cantidad_animales : '';
   document.getElementById('ev-notas').value   = v.notas   || '';
 
   // Mostrar/ocultar campos según tipo (peso vs cantidad), solo dentro de este modal
   toggleVentaFields(document.getElementById('ev-tipo'));
+
+  // ✅ Traer animales frescos de la base (no depender de que loadAnimales()
+  // ya se haya ejecutado antes)
+  await refrescarAnimalesCache();
 
   // ✅ Borregos que ya están asociados a esta venta
   const { data: detalles, error: errDet } = await db
@@ -182,7 +199,7 @@ async function updateVenta() {
     ingreso, costo, total: ingreso,
     peso_vendido: tipo === 'carne'    ? (parseFloat(document.getElementById('ev-peso-vendido').value) || null) : null,
     peso_real:    tipo === 'carne'    ? (parseFloat(document.getElementById('ev-peso-real').value)    || null) : null,
-    cantidad:     tipo === 'pie_cria' ? (parseInt(document.getElementById('ev-cantidad').value)       || null) : null,
+    cantidad_animales: tipo === 'pie_cria' ? (parseInt(document.getElementById('ev-cantidad').value) || null) : null,
     notas:   document.getElementById('ev-notas').value.trim() || null,
   };
 
