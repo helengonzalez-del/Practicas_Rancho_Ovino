@@ -404,6 +404,8 @@ function populateVentaSelect() {
 
 // DETALLE VENTA
 async function loadDetalleVenta() {
+  const el = document.getElementById('table-detalle_venta');
+  if (!el) return; // ✅ Si no existe el elemento, no hacer nada
   loading('table-detalle_venta');
   const { data, error } = await db.from('venta_animales').select(`
     *, venta:venta_id(fecha,cliente), animal:animal_id(identificador,nombre)
