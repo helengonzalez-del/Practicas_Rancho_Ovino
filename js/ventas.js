@@ -1,313 +1,263 @@
-// ventas.js — Ventas unificadas (Carne y Pie de Cría)
+// ventas.js — completo v4
 
 async function loadVentas() {
   loading('table-ventas');
   const { data, error } = await db.from('ventas').select('*').order('fecha', { ascending: false });
-
-  if (error) {
-    console.error(error);
-    showToast('Error cargando ventas', 'error');
-    return;
-  }
-
+  if (error) { showToast('Error cargando ventas', 'error'); return; }
   ventasCache = data || [];
-
-  if (!ventasCache.length) {
+  if (!data || !data.length) {
     document.getElementById('table-ventas').innerHTML = emptyState('💰', 'No hay ventas registradas');
     return;
   }
-
-  const rows = ventasCache.map(v => `
-    <tr>
+  const rows = data.map(v => {
+    const tipo = v.tipo === 'carne' ? '🥩 Carne' : v.tipo === 'pie_cria' ? '🐑 Pie de Cría' : '—';
+    const utilidad = ((v.ingreso||0) - (v.costo||0));
+    return `<tr>
       <td>${formatDate(v.fecha)}</td>
       <td>${v.cliente || '—'}</td>
-      <td>${v.tipo === 'carne' ? 'Carne' : 'Pie de Cría'}</td>
-      <td><strong>${formatMoney(v.ingreso || 0)}</strong></td>
-      <td>${v.costo != null ? formatMoney(v.costo) : '—'}</td>
-      <td>${v.tipo === 'carne' ? (v.rendimiento != null ? Number(v.rendimiento).toFixed(2) + '%' : '—') : (v.cantidad_animales ?? '—')}</td>
+      <td>${tipo}</td>
+      <td><strong style="color:var(--verde)">${formatMoney(v.ingreso)}</strong></td>
+      <td>${formatMoney(v.costo)}</td>
+      <td><strong style="color:${utilidad>=0?'var(--verde)':'#C0392B'}">${formatMoney(utilidad)}</strong></td>
       <td>${v.notas || '—'}</td>
       <td>
-        <div style="display:flex;gap:.3rem">
+        <div style="display:flex;gap:0.3rem">
           <button class="btn btn-edit" onclick="openEditVenta('${v.id}')">✏️</button>
-          <button class="btn btn-danger" onclick="deleteRecord('ventas','${v.id}',loadVentas)">🗑</button>
+          <button class="btn btn-danger" onclick="deleteVenta('${v.id}')">🗑</button>
         </div>
       </td>
-    </tr>
-  `).join('');
-
+    </tr>`;
+  }).join('');
   document.getElementById('table-ventas').innerHTML = `
-    <table>
-      <thead>
-        <tr>
-          <th>Fecha</th><th>Cliente</th><th>Tipo</th><th>Ingreso</th><th>Costo</th><th>Rendimiento / Cantidad</th><th>Notas</th><th>Acc.</th>
-        </tr>
-      </thead>
-      <tbody>${rows}</tbody>
-    </table>`;
+    <table><thead><tr>
+      <th>Fecha</th><th>Cliente</th><th>Tipo</th><th>Ingreso</th><th>Costo</th><th>Utilidad</th><th>Notas</th><th>Acc.</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  populateVentaSelect();
 }
 
-async function populateAnimalesSelects(selectedVentaId = null) {
-  const { data, error } = await db.from('animales').select('id, identificador, nombre, estado').order('identificador', { ascending: true });
-
-  if (error) {
-    console.error(error);
-    showToast('Error cargando animales', 'error');
-    return;
+// ✅ Abrir modal y poblar animales activos
+function openModalVenta() {
+  const sel = document.getElementById('v-animales');
+  if (sel) {
+    sel.innerHTML = animalesCache
+      .filter(a => a.estado === 'activo')
+      .map(a => `<option value="${a.id}">${a.identificador}${a.nombre ? ' — ' + a.nombre : ''}</option>`)
+      .join('');
+    if (!sel.innerHTML) sel.innerHTML = '<option disabled>No hay animales activos disponibles</option>';
   }
-
-  const animales = data || [];
-  let animalesVenta = [];
-
-  if (selectedVentaId) {
-    const { data: relaciones } = await db.from('venta_animales').select('animal_id').eq('venta_id', selectedVentaId);
-    animalesVenta = (relaciones || []).map(a => String(a.animal_id));
-  }
-
-  const disponibles = animales.filter(a => {
-    const id = String(a.id);
-    return a.estado !== 'vendido' || animalesVenta.includes(id);
+  // Limpiar campos
+  ['v-fecha','v-cliente','v-ingreso','v-costo','v-peso-vendido','v-peso-real','v-rendimiento','v-cantidad','v-notas'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
   });
+  document.getElementById('v-tipo').value = '';
+  document.querySelectorAll('.carne-only, .pie-only').forEach(el => el.style.display = 'none');
+  openModal('modal-venta');
+}
 
-  const options = disponibles.map(a => {
-    const id = String(a.id);
-    const selected = animalesVenta.includes(id) ? 'selected' : '';
-    return `<option value="${id}" ${selected}>${a.identificador || 'Sin ID'}${a.nombre ? ' - ' + a.nombre : ''}${a.estado === 'vendido' && selected ? ' (vendido)' : ''}</option>`;
-  }).join('');
+function toggleVentaFields(sel) {
+  const tipo = sel.value;
+  document.querySelectorAll('.carne-only').forEach(el => el.style.display = tipo === 'carne'    ? '' : 'none');
+  document.querySelectorAll('.pie-only').forEach(el   => el.style.display = tipo === 'pie_cria' ? '' : 'none');
+}
 
-  const html = `<option value="">Seleccionar...</option>${options}`;
-
-  const vAnimales = document.getElementById('v-animales');
-  const evAnimales = document.getElementById('ev-animales');
-
-  if (vAnimales) vAnimales.innerHTML = html;
-  if (evAnimales) evAnimales.innerHTML = html;
+function calcularRendimientoVenta() {
+  const vendido = parseFloat(document.getElementById('v-peso-vendido').value) || 0;
+  const real    = parseFloat(document.getElementById('v-peso-real').value)    || 0;
+  const rend    = real > 0 ? ((vendido / real) * 100).toFixed(1) : '';
+  document.getElementById('v-rendimiento').value = rend;
 }
 
 async function saveVenta() {
-  const fecha = document.getElementById('v-fecha').value;
-  const tipo = document.getElementById('v-tipo').value;
+  const tipo   = document.getElementById('v-tipo').value;
+  const fecha  = document.getElementById('v-fecha').value;
+  const ingreso = parseFloat(document.getElementById('v-ingreso').value) || null;
+  const costo   = parseFloat(document.getElementById('v-costo').value)   || null;
 
-  if (!fecha || !tipo) {
-    showToast('Fecha y tipo de venta son obligatorios', 'error');
-    return;
-  }
+  if (!fecha) { showToast('La fecha es obligatoria', 'error'); return; }
+  if (!tipo)  { showToast('Selecciona el tipo de venta', 'error'); return; }
 
-  const ingreso = document.getElementById('v-ingreso').value;
-  const costo = document.getElementById('v-costo').value;
+  // Animales seleccionados
+  const selAnimales = Array.from(document.getElementById('v-animales').selectedOptions).map(o => o.value).filter(Boolean);
 
   const payload = {
     fecha,
-    cliente: document.getElementById('v-cliente').value.trim() || null,
+    cliente:      document.getElementById('v-cliente').value.trim() || null,
     tipo,
-    ingreso: ingreso !== '' ? parseFloat(ingreso) : null,
-    costo: costo !== '' ? parseFloat(costo) : null,
-    notas: document.getElementById('v-notas').value.trim() || null
+    ingreso,
+    costo,
+    total:        ingreso,
+    peso_vendido: tipo === 'carne' ? (parseFloat(document.getElementById('v-peso-vendido').value) || null) : null,
+    peso_real:    tipo === 'carne' ? (parseFloat(document.getElementById('v-peso-real').value)    || null) : null,
+    rendimiento:  tipo === 'carne' ? (parseFloat(document.getElementById('v-rendimiento').value)  || null) : null,
+    cantidad:     tipo === 'pie_cria' ? (parseInt(document.getElementById('v-cantidad').value)    || null) : null,
+    notas:        document.getElementById('v-notas').value.trim() || null,
   };
 
-  if (tipo === 'carne') {
-    const pesoVendido = document.getElementById('v-peso-vendido').value;
-    const pesoReal = document.getElementById('v-peso-real').value;
+  const { data: venta, error } = await db.from('ventas').insert(payload).select().single();
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
 
-    payload.peso_vendido = pesoVendido !== '' ? parseFloat(pesoVendido) : null;
-    payload.peso_real = pesoReal !== '' ? parseFloat(pesoReal) : null;
-    payload.rendimiento = payload.peso_real > 0 && payload.peso_vendido != null
-      ? (payload.peso_vendido / payload.peso_real) * 100
-      : null;
-  }
-
-  if (tipo === 'pie_cria') {
-    const cantidad = document.getElementById('v-cantidad').value;
-    payload.cantidad_animales = cantidad !== '' ? parseInt(cantidad, 10) : null;
-  }
-
-  const { data, error } = await db.from('ventas').insert(payload).select().single();
-
-  if (error) {
-    console.error(error);
-    showToast('Error: ' + error.message, 'error');
-    return;
-  }
-
-  const ids = Array.from(document.getElementById('v-animales').selectedOptions)
-    .map(o => o.value)
-    .filter(id => id !== '');
-
-  for (const animalId of ids) {
-    const { error: relacionError } = await db.from('venta_animales').insert({
-      venta_id: data.id,
-      animal_id: animalId
+  // ✅ Guardar detalle y marcar animales como vendidos
+  for (const animalId of selAnimales) {
+    await db.from('detalle_venta').insert({
+      id_venta:  venta.id,
+      id_animal: animalId,
+      precio:    ingreso && selAnimales.length ? parseFloat((ingreso / selAnimales.length).toFixed(2)) : null,
     });
-
-    if (relacionError) console.error(relacionError);
-
-    const { error: animalError } = await db.from('animales').update({ estado: 'vendido' }).eq('id', animalId);
-
-    if (animalError) console.error(animalError);
+    await db.from('animales').update({ estado: 'vendido' }).eq('id', animalId);
   }
 
   showToast('✅ Venta registrada');
   closeModal('modal-venta');
-  limpiarFormularioVenta();
-  await loadVentas();
-
-  if (typeof loadAnimales === 'function') {
-    await loadAnimales();
-  }
+  loadVentas();
+  loadAnimales(); // ✅ actualiza estado en tabla animales
 }
 
 async function openEditVenta(id) {
-  const v = ventasCache.find(x => String(x.id) === String(id));
-
-  if (!v) {
-    showToast('No se encontró la venta', 'error');
-    return;
-  }
-
-  await populateAnimalesSelects(v.id);
-
-  document.getElementById('ev-id').value = v.id;
-  document.getElementById('ev-fecha').value = v.fecha || '';
+  const { data: v } = await db.from('ventas').select('*').eq('id', id).single();
+  if (!v) return;
+  document.getElementById('ev-id').value      = v.id;
+  document.getElementById('ev-fecha').value   = v.fecha   || '';
   document.getElementById('ev-cliente').value = v.cliente || '';
-  document.getElementById('ev-tipo').value = v.tipo || '';
-  document.getElementById('ev-ingreso').value = v.ingreso ?? '';
-  document.getElementById('ev-costo').value = v.costo ?? '';
-  document.getElementById('ev-peso-vendido').value = v.peso_vendido ?? '';
-  document.getElementById('ev-peso-real').value = v.peso_real ?? '';
-  document.getElementById('ev-cantidad').value = v.cantidad_animales ?? '';
-  document.getElementById('ev-notas').value = v.notas || '';
-
-  toggleVentaFields(document.getElementById('ev-tipo'));
+  document.getElementById('ev-ingreso').value = v.ingreso != null ? v.ingreso : (v.total || '');
+  document.getElementById('ev-costo').value   = v.costo   || '';
+  document.getElementById('ev-notas').value   = v.notas   || '';
   openModal('modal-edit-venta');
 }
 
 async function updateVenta() {
-  const id = document.getElementById('ev-id').value;
-  const fecha = document.getElementById('ev-fecha').value;
-  const tipo = document.getElementById('ev-tipo').value;
-
-  if (!id || !fecha || !tipo) {
-    showToast('Fecha y tipo de venta son obligatorios', 'error');
-    return;
-  }
-
-  const ingreso = document.getElementById('ev-ingreso').value;
-  const costo = document.getElementById('ev-costo').value;
-
+  const id      = document.getElementById('ev-id').value;
+  const ingreso = parseFloat(document.getElementById('ev-ingreso').value) || null;
+  const costo   = parseFloat(document.getElementById('ev-costo').value)   || null;
   const payload = {
-    fecha,
-    cliente: document.getElementById('ev-cliente').value.trim() || null,
-    tipo,
-    ingreso: ingreso !== '' ? parseFloat(ingreso) : null,
-    costo: costo !== '' ? parseFloat(costo) : null,
-    notas: document.getElementById('ev-notas').value.trim() || null
+    fecha:   document.getElementById('ev-fecha').value   || null,
+    cliente: document.getElementById('ev-cliente').value || null,
+    ingreso, costo, total: ingreso,
+    notas:   document.getElementById('ev-notas').value.trim() || null,
   };
-
-  if (tipo === 'carne') {
-    const pesoVendido = document.getElementById('ev-peso-vendido').value;
-    const pesoReal = document.getElementById('ev-peso-real').value;
-
-    payload.peso_vendido = pesoVendido !== '' ? parseFloat(pesoVendido) : null;
-    payload.peso_real = pesoReal !== '' ? parseFloat(pesoReal) : null;
-    payload.rendimiento = payload.peso_real > 0 && payload.peso_vendido != null
-      ? (payload.peso_vendido / payload.peso_real) * 100
-      : null;
-    payload.cantidad_animales = null;
-  }
-
-  if (tipo === 'pie_cria') {
-    const cantidad = document.getElementById('ev-cantidad').value;
-
-    payload.cantidad_animales = cantidad !== ''
-      ? parseInt(cantidad, 10)
-      : null;
-
-    payload.peso_vendido = null;
-    payload.peso_real = null;
-    payload.rendimiento = null;
-  }
-
   const { error } = await db.from('ventas').update(payload).eq('id', id);
-
-  if (error) {
-    console.error(error);
-    showToast('Error: ' + error.message, 'error');
-    return;
-  }
-
-  const nuevosIds = Array.from(document.getElementById('ev-animales').selectedOptions)
-    .map(o => o.value)
-    .filter(id => id !== '');
-
-  const { data: anteriores } = await db.from('venta_animales').select('animal_id').eq('venta_id', id);
-
-  const anterioresIds = (anteriores || []).map(a => String(a.animal_id));
-
-  await db.from('venta_animales').delete().eq('venta_id', id);
-
-  const quitados = anterioresIds.filter(animalId => !nuevosIds.includes(animalId));
-
-  for (const animalId of quitados) {
-    await db.from('animales').update({ estado: 'disponible' }).eq('id', animalId);
-  }
-
-  for (const animalId of nuevosIds) {
-    await db.from('venta_animales').insert({
-      venta_id: id,
-      animal_id: animalId
-    });
-
-    await db.from('animales').update({ estado: 'vendido' }).eq('id', animalId);
-  }
-
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast('✅ Venta actualizada');
   closeModal('modal-edit-venta');
-  await loadVentas();
-
-  if (typeof loadAnimales === 'function') {
-    await loadAnimales();
-  }
+  loadVentas();
 }
 
-function toggleVentaFields(selectElement = null) {
-  const select = selectElement || this;
-  if (!select) return;
-
-  const tipo = select.value;
-  const modal = select.closest('.modal');
-  if (!modal) return;
-
-  modal.querySelectorAll('.carne-only').forEach(el => {
-    el.style.display = tipo === 'carne' ? '' : 'none';
-  });
-
-  modal.querySelectorAll('.pie-only').forEach(el => {
-    el.style.display = tipo === 'pie_cria' ? '' : 'none';
-  });
+// ✅ Eliminar venta y revertir estado de animales
+async function deleteVenta(id) {
+  if (!confirm('¿Seguro que deseas eliminar esta venta y revertir el estado de los animales?')) return;
+  const { data: detalles } = await db.from('detalle_venta').select('id_animal').eq('id_venta', id);
+  if (detalles?.length) {
+    for (const d of detalles) {
+      if (d.id_animal) await db.from('animales').update({ estado: 'activo' }).eq('id', d.id_animal);
+    }
+  }
+  const { error } = await db.from('ventas').delete().eq('id', id);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('🗑 Venta eliminada');
+  loadVentas();
+  loadAnimales();
 }
 
-function limpiarFormularioVenta() {
-  [
-    'v-fecha',
-    'v-cliente',
-    'v-ingreso',
-    'v-costo',
-    'v-peso-vendido',
-    'v-peso-real',
-    'v-cantidad',
-    'v-notas'
-  ].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = '';
-  });
+function populateVentaSelect() {
+  const el = document.getElementById('d-venta');
+  if (!el) return;
+  el.innerHTML = '<option value="">Seleccionar venta...</option>' +
+    ventasCache.map(v =>
+      `<option value="${v.id}">${formatDate(v.fecha)} — ${v.cliente || 'Sin cliente'} (${formatMoney(v.total)})</option>`
+    ).join('');
+}
 
-  const tipo = document.getElementById('v-tipo');
-  if (tipo) {
-    tipo.value = '';
-    toggleVentaFields(tipo);
+// DETALLE VENTA
+async function loadDetalleVenta() {
+  loading('table-detalle_venta');
+  const { data, error } = await db.from('detalle_venta').select(`
+    *, venta:id_venta(fecha,cliente), animal:id_animal(identificador,nombre)
+  `).order('id', { ascending: false });
+  if (error) { showToast('Error cargando detalle', 'error'); return; }
+  if (!data || !data.length) {
+    document.getElementById('table-detalle_venta').innerHTML = emptyState('🧾', 'No hay detalle de ventas'); return;
   }
+  const rows = data.map(d => `
+    <tr>
+      <td>${d.venta ? formatDate(d.venta.fecha) + (d.venta.cliente ? ' — ' + d.venta.cliente : '') : '—'}</td>
+      <td>${d.animal ? d.animal.identificador : '—'}</td>
+      <td>${d.animal ? (d.animal.nombre || '—') : '—'}</td>
+      <td>${formatMoney(d.precio)}</td>
+      <td>${d.peso != null ? d.peso + ' kg' : '—'}</td>
+      <td>${d.notas || '—'}</td>
+      <td>
+        <div style="display:flex;gap:0.3rem">
+          <button class="btn btn-edit" onclick="openEditDetalle('${d.id}','${d.id_venta}','${d.precio||''}','${d.peso||''}','${(d.notas||'').replace(/'/g,'')}')">✏️</button>
+          <button class="btn btn-danger" onclick="deleteDetalle('${d.id}','${d.id_animal}')">🗑</button>
+        </div>
+      </td>
+    </tr>`).join('');
+  document.getElementById('table-detalle_venta').innerHTML = `
+    <table><thead><tr>
+      <th>Venta</th><th>ID Animal</th><th>Nombre</th><th>Precio</th><th>Peso</th><th>Notas</th><th>Acc.</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
 
-  const animales = document.getElementById('v-animales');
-  if (animales) {
-    Array.from(animales.options).forEach(option => option.selected = false);
+function openModalDetalle() {
+  populateVentaSelect();
+  const selAnimal = document.getElementById('d-animal');
+  if (selAnimal) {
+    selAnimal.innerHTML = '<option value="">Seleccionar animal...</option>' +
+      animalesCache.filter(a => a.estado === 'activo').map(a =>
+        `<option value="${a.id}">${a.identificador}${a.nombre?' — '+a.nombre:''}</option>`).join('');
   }
+  openModal('modal-detalle');
+}
+
+async function saveDetalle() {
+  const animalId = document.getElementById('d-animal').value;
+  const payload = {
+    id_venta:  document.getElementById('d-venta').value,
+    id_animal: animalId,
+    precio:    document.getElementById('d-precio').value ? parseFloat(document.getElementById('d-precio').value) : null,
+    peso:      document.getElementById('d-peso').value   ? parseFloat(document.getElementById('d-peso').value)   : null,
+    notas:     document.getElementById('d-notas').value.trim() || null,
+  };
+  if (!payload.id_venta || !payload.id_animal) { showToast('Venta y animal son obligatorios', 'error'); return; }
+  const { error } = await db.from('detalle_venta').insert(payload);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  if (animalId) await db.from('animales').update({ estado: 'vendido' }).eq('id', animalId);
+  showToast('✅ Detalle registrado');
+  closeModal('modal-detalle');
+  loadDetalleVenta();
+  loadAnimales();
+}
+
+function openEditDetalle(id, idVenta, precio, peso, notas) {
+  document.getElementById('ed-id').value     = id;
+  document.getElementById('ed-precio').value = precio;
+  document.getElementById('ed-peso').value   = peso;
+  document.getElementById('ed-notas').value  = notas;
+  const sv = document.getElementById('ed-venta');
+  if (sv) { sv.innerHTML = document.getElementById('d-venta').innerHTML; sv.value = idVenta; }
+  openModal('modal-edit-detalle');
+}
+
+async function updateDetalle() {
+  const id = document.getElementById('ed-id').value;
+  const payload = {
+    precio: document.getElementById('ed-precio').value ? parseFloat(document.getElementById('ed-precio').value) : null,
+    peso:   document.getElementById('ed-peso').value   ? parseFloat(document.getElementById('ed-peso').value)   : null,
+    notas:  document.getElementById('ed-notas').value.trim() || null,
+  };
+  const { error } = await db.from('detalle_venta').update(payload).eq('id', id);
+  if (error) { showToast('Error: ' + error.message, 'error'); return; }
+  showToast('✅ Detalle actualizado');
+  closeModal('modal-edit-detalle');
+  loadDetalleVenta();
+}
+
+// ✅ Eliminar detalle y revertir estado animal
+async function deleteDetalle(id, animalId) {
+  if (!confirm('¿Seguro que deseas eliminar este registro?')) return;
+  const { error } = await db.from('detalle_venta').delete().eq('id', id);
+  if (error) { showToast('Error al eliminar: ' + error.message, 'error'); return; }
+  if (animalId) await db.from('animales').update({ estado: 'activo' }).eq('id', animalId);
+  showToast('🗑 Registro eliminado');
+  loadDetalleVenta();
+  loadAnimales();
 }

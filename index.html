@@ -624,75 +624,68 @@
       <span>💰 Nueva Venta</span>
       <button class="modal-close" type="button" onclick="closeModal('modal-venta')">✕</button>
     </div>
-
     <div class="modal-body">
       <div class="form-grid">
-
         <div class="form-group">
           <label>Fecha *</label>
           <input type="date" id="v-fecha" required>
         </div>
-
         <div class="form-group">
           <label>Cliente</label>
           <input type="text" id="v-cliente" placeholder="Nombre del cliente">
         </div>
-
         <div class="form-group">
           <label>Tipo de Venta *</label>
           <select id="v-tipo" onchange="toggleVentaFields(this)" required>
             <option value="">Seleccionar...</option>
-            <option value="carne">Carne</option>
-            <option value="pie_cria">Pie de Cría</option>
+            <option value="carne">🥩 Carne</option>
+            <option value="pie_cria">🐑 Pie de Cría</option>
           </select>
         </div>
-
         <div class="form-group">
           <label>Ingreso ($)</label>
-          <input type="number" id="v-ingreso" min="0" step="0.01">
+          <input type="number" id="v-ingreso" min="0" step="0.01" placeholder="0.00">
         </div>
-
         <div class="form-group">
           <label>Costo ($)</label>
-          <input type="number" id="v-costo" min="0" step="0.01">
+          <input type="number" id="v-costo" min="0" step="0.01" placeholder="0.00">
         </div>
-
-        <div class="form-group carne-only">
-          <label>Peso Vendido (kg)</label>
-          <input type="number" id="v-peso-vendido" min="0" step="0.1">
+        <div class="form-group carne-only" style="display:none">
+          <label>Peso Vendido en Canal (kg)</label>
+          <input type="number" id="v-peso-vendido" min="0" step="0.1" placeholder="0.0" oninput="calcularRendimientoVenta()">
         </div>
-
-        <div class="form-group carne-only">
-          <label>Peso Real (kg)</label>
-          <input type="number" id="v-peso-real" min="0" step="0.1">
+        <div class="form-group carne-only" style="display:none">
+          <label>Peso Real / Vivo (kg)</label>
+          <input type="number" id="v-peso-real" min="0" step="0.1" placeholder="0.0" oninput="calcularRendimientoVenta()">
         </div>
-
-        <div class="form-group pie-only">
+        <div class="form-group carne-only" style="display:none">
+          <label>Rendimiento (%)</label>
+          <input type="number" id="v-rendimiento" step="0.1" placeholder="Auto" readonly
+            style="background:#f0f0f0;font-weight:bold;cursor:not-allowed">
+        </div>
+        <div class="form-group pie-only" style="display:none">
           <label>Cantidad de Animales</label>
-          <input type="number" id="v-cantidad" min="1" step="1">
+          <input type="number" id="v-cantidad" min="1" step="1" placeholder="0">
         </div>
-
         <div class="form-group" style="grid-column:1/-1">
-          <label>Borregos Vendidos</label>
-          <select id="v-animales" multiple size="6"></select>
-          <small>Mantén presionada Ctrl para seleccionar varios animales.</small>
+          <label>Borregos Disponibles para Venta</label>
+          <select id="v-animales" multiple size="6"
+            style="width:100%;border:2px solid var(--crema-oscuro);border-radius:8px;padding:0.5rem;font-family:Lato,sans-serif">
+          </select>
+          <small style="color:var(--gris-calido)">Mantén Ctrl (Windows) o Cmd (Mac) para seleccionar varios.</small>
         </div>
-
         <div class="form-group" style="grid-column:1/-1">
           <label>Notas</label>
           <textarea id="v-notas" rows="2" placeholder="Observaciones..."></textarea>
         </div>
-
       </div>
     </div>
-
     <div class="modal-footer">
       <button class="btn" type="button" onclick="closeModal('modal-venta')">Cancelar</button>
       <button class="btn btn-primary" type="button" onclick="saveVenta()">💾 Guardar</button>
     </div>
   </div>
 </div>
-
 
 <!-- Modal Editar Venta -->
 <div class="modal-overlay" id="modal-edit-venta">
