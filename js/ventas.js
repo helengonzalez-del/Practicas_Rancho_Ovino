@@ -13,13 +13,13 @@ async function loadVentas() {
 
   // ✅ Traer qué borregos están ligados a cada venta, para mostrarlo en la tabla
   const { data: detallesTodos } = await db
-    .from('detalle_venta')
-    .select('id_venta, animal:id_animal(identificador,nombre)');
+    .from('venta_animales')
+    .select('venta_id, animal:animal_id(identificador,nombre)');
   const borregosPorVenta = {};
   (detallesTodos || []).forEach(d => {
-    if (!d.id_venta || !d.animal) return;
-    if (!borregosPorVenta[d.id_venta]) borregosPorVenta[d.id_venta] = [];
-    borregosPorVenta[d.id_venta].push(d.animal.identificador + (d.animal.nombre ? ' (' + d.animal.nombre + ')' : ''));
+    if (!d.venta_id || !d.animal) return;
+    if (!borregosPorVenta[d.venta_id]) borregosPorVenta[d.venta_id] = [];
+    borregosPorVenta[d.venta_id].push(d.animal.identificador + (d.animal.nombre ? ' (' + d.animal.nombre + ')' : ''));
   });
 
   const rows = data.map(v => {
@@ -167,7 +167,9 @@ async function saveVenta() {
     peso_vendido: tipo === 'carne' ? (parseFloat(document.getElementById('v-peso-vendido').value) || null) : null,
     peso_real:    tipo === 'carne' ? (parseFloat(document.getElementById('v-peso-real').value)    || null) : null,
     rendimiento:  tipo === 'carne' ? (parseFloat(document.getElementById('v-rendimiento').value)  || null) : null,
-    cantidad_animales: tipo === 'pie_cria' ? (parseInt(document.getElementById('v-cantidad').value) || null) : null,
+    // ℹ️ "Cantidad de Animales" ya NO se guarda como columna en ventas —
+    // la cantidad real se obtiene contando las filas en venta_animales.
+    // Aquí solo se usa como validación antes de guardar (ver arriba).
     notas:        document.getElementById('v-notas').value.trim() || null,
   };
 
@@ -175,13 +177,19 @@ async function saveVenta() {
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
 
   // ✅ Guardar detalle y marcar animales como vendidos
+  // ✅ Guardar detalle y marcar animales como vendidos, revisando errores
+  //    en vez de ignorarlos silenciosamente
+  let erroresDetalle = 0;
   for (const animalId of selAnimales) {
-    await db.from('detalle_venta').insert({
-      id_venta:  venta.id,
-      id_animal: animalId,
-      precio:    ingreso && selAnimales.length ? parseFloat((ingreso / selAnimales.length).toFixed(2)) : null,
+    const { error: errIns } = await db.from('venta_animales').insert({
+      venta_id:  venta.id,
+      animal_id: animalId,
     });
+    if (errIns) { console.error('Error vinculando borrego a la venta:', errIns); erroresDetalle++; continue; }
     await db.from('animales').update({ estado: 'vendido' }).eq('id', animalId);
+  }
+  if (erroresDetalle > 0) {
+    showToast(`⚠️ La venta se guardó pero no se pudo vincular ${erroresDetalle} borrego(s). Revisa la consola.`, 'error');
   }
 
   // ✅ Reflejar el nuevo estado de los animales en memoria al instante
@@ -211,7 +219,6 @@ async function openEditVenta(id) {
   document.getElementById('ev-costo').value   = v.costo   || '';
   document.getElementById('ev-peso-vendido').value = v.peso_vendido != null ? v.peso_vendido : '';
   document.getElementById('ev-peso-real').value    = v.peso_real    != null ? v.peso_real    : '';
-  document.getElementById('ev-cantidad').value     = v.cantidad_animales != null ? v.cantidad_animales : '';
   document.getElementById('ev-notas').value   = v.notas   || '';
 
   // Mostrar/ocultar campos según tipo (peso vs cantidad), solo dentro de este modal
@@ -223,12 +230,16 @@ async function openEditVenta(id) {
 
   // ✅ Borregos que ya están asociados a esta venta
   const { data: detalles, error: errDet } = await db
-    .from('detalle_venta')
-    .select('id_animal')
-    .eq('id_venta', id);
+    .from('venta_animales')
+    .select('animal_id')
+    .eq('venta_id', id);
   if (errDet) { showToast('Error cargando animales de la venta', 'error'); }
-  const idsDeEstaVenta = (detalles || []).map(d => d.id_animal).filter(Boolean);
+  const idsDeEstaVenta = (detalles || []).map(d => d.animal_id).filter(Boolean);
   edVentaAnimalesOriginales = idsDeEstaVenta;
+
+  // ℹ️ "Cantidad de Animales" ya no viene de una columna en ventas —
+  // se calcula contando cuántos borregos están ligados a esta venta.
+  document.getElementById('ev-cantidad').value = v.tipo === 'pie_cria' ? idsDeEstaVenta.length : '';
 
   // ✅ Se muestran TODOS los borregos (no solo los disponibles), para que si un
   //    borrego quedó marcado "vendido" por error puedas corregirlo aquí mismo,
@@ -275,7 +286,8 @@ async function updateVenta() {
     ingreso, costo, total: ingreso,
     peso_vendido: tipo === 'carne'    ? (parseFloat(document.getElementById('ev-peso-vendido').value) || null) : null,
     peso_real:    tipo === 'carne'    ? (parseFloat(document.getElementById('ev-peso-real').value)    || null) : null,
-    cantidad_animales: tipo === 'pie_cria' ? (parseInt(document.getElementById('ev-cantidad').value) || null) : null,
+    // ℹ️ "Cantidad de Animales" ya NO se guarda como columna en ventas —
+    // la cantidad real se obtiene contando las filas en venta_animales.
     notas:   document.getElementById('ev-notas').value.trim() || null,
   };
 
@@ -288,7 +300,7 @@ async function updateVenta() {
   const agregados = selAnimalesNuevo.filter(a => !originales.includes(a));
 
   if (quitados.length) {
-    await db.from('detalle_venta').delete().eq('id_venta', id).in('id_animal', quitados);
+    await db.from('venta_animales').delete().eq('venta_id', id).in('animal_id', quitados);
     const { data: reactivados, error: errQuit } = await db
       .from('animales').update({ estado: 'activo' }).in('id', quitados).select('id');
     if (errQuit) {
@@ -300,11 +312,14 @@ async function updateVenta() {
     }
   }
   if (agregados.length) {
-    await db.from('detalle_venta').insert(agregados.map(animalId => ({
-      id_venta:  id,
-      id_animal: animalId,
-      precio: ingreso && selAnimalesNuevo.length ? parseFloat((ingreso / selAnimalesNuevo.length).toFixed(2)) : null,
+    const { error: errIns } = await db.from('venta_animales').insert(agregados.map(animalId => ({
+      venta_id:  id,
+      animal_id: animalId,
     })));
+    if (errIns) {
+      console.error('Error vinculando borregos a la venta:', errIns);
+      showToast('Error vinculando borregos: ' + errIns.message, 'error');
+    }
     const { data: vendidos, error: errAgr } = await db
       .from('animales').update({ estado: 'vendido' }).in('id', agregados).select('id');
     if (errAgr) {
@@ -335,10 +350,10 @@ async function updateVenta() {
 async function deleteVenta(id) {
   if (!confirm('¿Seguro que deseas eliminar esta venta y revertir el estado de los animales?')) return;
 
-  const { data: detalles, error: errDet } = await db.from('detalle_venta').select('id_animal').eq('id_venta', id);
+  const { data: detalles, error: errDet } = await db.from('venta_animales').select('animal_id').eq('venta_id', id);
   if (errDet) { showToast('Error leyendo los borregos de la venta: ' + errDet.message, 'error'); return; }
 
-  const idsAnimales = (detalles || []).map(d => d.id_animal).filter(Boolean);
+  const idsAnimales = (detalles || []).map(d => d.animal_id).filter(Boolean);
 
   if (idsAnimales.length) {
     // ✅ Actualizamos todos de una vez y pedimos de vuelta las filas que
@@ -388,8 +403,8 @@ function populateVentaSelect() {
 // DETALLE VENTA
 async function loadDetalleVenta() {
   loading('table-detalle_venta');
-  const { data, error } = await db.from('detalle_venta').select(`
-    *, venta:id_venta(fecha,cliente), animal:id_animal(identificador,nombre)
+  const { data, error } = await db.from('venta_animales').select(`
+    *, venta:venta_id(fecha,cliente), animal:animal_id(identificador,nombre)
   `).order('id', { ascending: false });
   if (error) { showToast('Error cargando detalle', 'error'); return; }
   if (!data || !data.length) {
@@ -405,8 +420,8 @@ async function loadDetalleVenta() {
       <td>${d.notas || '—'}</td>
       <td>
         <div style="display:flex;gap:0.3rem">
-          <button class="btn btn-edit" onclick="openEditDetalle('${d.id}','${d.id_venta}','${d.precio||''}','${d.peso||''}','${(d.notas||'').replace(/'/g,'')}')">✏️</button>
-          <button class="btn btn-danger" onclick="deleteDetalle('${d.id}','${d.id_animal}')">🗑</button>
+          <button class="btn btn-edit" onclick="openEditDetalle('${d.id}','${d.venta_id}','${d.precio||''}','${d.peso||''}','${(d.notas||'').replace(/'/g,'')}')">✏️</button>
+          <button class="btn btn-danger" onclick="deleteDetalle('${d.id}','${d.animal_id}')">🗑</button>
         </div>
       </td>
     </tr>`).join('');
@@ -430,14 +445,14 @@ function openModalDetalle() {
 async function saveDetalle() {
   const animalId = document.getElementById('d-animal').value;
   const payload = {
-    id_venta:  document.getElementById('d-venta').value,
-    id_animal: animalId,
+    venta_id:  document.getElementById('d-venta').value,
+    animal_id: animalId,
     precio:    document.getElementById('d-precio').value ? parseFloat(document.getElementById('d-precio').value) : null,
     peso:      document.getElementById('d-peso').value   ? parseFloat(document.getElementById('d-peso').value)   : null,
     notas:     document.getElementById('d-notas').value.trim() || null,
   };
-  if (!payload.id_venta || !payload.id_animal) { showToast('Venta y animal son obligatorios', 'error'); return; }
-  const { error } = await db.from('detalle_venta').insert(payload);
+  if (!payload.venta_id || !payload.animal_id) { showToast('Venta y animal son obligatorios', 'error'); return; }
+  const { error } = await db.from('venta_animales').insert(payload);
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   if (animalId) {
     await db.from('animales').update({ estado: 'vendido' }).eq('id', animalId);
@@ -466,7 +481,7 @@ async function updateDetalle() {
     peso:   document.getElementById('ed-peso').value   ? parseFloat(document.getElementById('ed-peso').value)   : null,
     notas:  document.getElementById('ed-notas').value.trim() || null,
   };
-  const { error } = await db.from('detalle_venta').update(payload).eq('id', id);
+  const { error } = await db.from('venta_animales').update(payload).eq('id', id);
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast('✅ Detalle actualizado');
   closeModal('modal-edit-detalle');
@@ -476,7 +491,7 @@ async function updateDetalle() {
 // ✅ Eliminar detalle y revertir estado animal
 async function deleteDetalle(id, animalId) {
   if (!confirm('¿Seguro que deseas eliminar este registro?')) return;
-  const { error } = await db.from('detalle_venta').delete().eq('id', id);
+  const { error } = await db.from('venta_animales').delete().eq('id', id);
   if (error) { showToast('Error al eliminar: ' + error.message, 'error'); return; }
   if (animalId) {
     await db.from('animales').update({ estado: 'activo' }).eq('id', animalId);
