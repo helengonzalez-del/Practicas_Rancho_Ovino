@@ -65,27 +65,20 @@ function renderResumenBorregos() {
   const cont = document.getElementById('resumen-borregos');
   if (!cont) return;
 
-  const activos  = animalesCache.filter(a => a.estado === 'activo' || !a.estado);
-  const vendidos = animalesCache.filter(a => a.estado === 'vendido');
-  const muertos  = animalesCache.filter(a => a.estado === 'muerto');
-
-  const listar = arr => arr.length
-    ? arr.map(a => `${a.identificador}${a.nombre ? ' — ' + a.nombre : ''}`).join(', ')
-    : '—';
+  const activos  = animalesCache.filter(a => a.estado === 'activo' || !a.estado).length;
+  const vendidos = animalesCache.filter(a => a.estado === 'vendido').length;
+  const muertos  = animalesCache.filter(a => a.estado === 'muerto').length;
 
   cont.innerHTML = `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin:1rem 0">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin:1rem 0">
       <div style="border-left:4px solid #2e7d32;background:#f4f9f4;border-radius:8px;padding:0.75rem 1rem">
-        <strong>🟢 Activos (${activos.length})</strong>
-        <div style="font-size:0.85rem;color:#666;margin-top:0.25rem">${listar(activos)}</div>
+        <strong>🟢 Activos (${activos})</strong>
       </div>
       <div style="border-left:4px solid #B08900;background:#fbf7ec;border-radius:8px;padding:0.75rem 1rem">
-        <strong>💰 Vendidos (${vendidos.length})</strong>
-        <div style="font-size:0.85rem;color:#666;margin-top:0.25rem">${listar(vendidos)}</div>
+        <strong>💰 Vendidos (${vendidos})</strong>
       </div>
       <div style="border-left:4px solid #555;background:#f2f2f2;border-radius:8px;padding:0.75rem 1rem">
-        <strong>⚫ Muertos (${muertos.length})</strong>
-        <div style="font-size:0.85rem;color:#666;margin-top:0.25rem">${listar(muertos)}</div>
+        <strong>⚫ Muertos (${muertos})</strong>
       </div>
     </div>`;
 }
