@@ -54,10 +54,14 @@ function openModalVenta() {
   openModal('modal-venta');
 }
 
+// ✅ Ahora acota el toggle al modal donde vive el <select>, para que
+// modal-venta y modal-edit-venta no se pisen entre sí (comparten las
+// mismas clases .carne-only / .pie-only).
 function toggleVentaFields(sel) {
   const tipo = sel.value;
-  document.querySelectorAll('.carne-only').forEach(el => el.style.display = tipo === 'carne'    ? '' : 'none');
-  document.querySelectorAll('.pie-only').forEach(el   => el.style.display = tipo === 'pie_cria' ? '' : 'none');
+  const scope = sel.closest('.modal') || document;
+  scope.querySelectorAll('.carne-only').forEach(el => el.style.display = tipo === 'carne'    ? '' : 'none');
+  scope.querySelectorAll('.pie-only').forEach(el   => el.style.display = tipo === 'pie_cria' ? '' : 'none');
 }
 
 function calcularRendimientoVenta() {
@@ -106,39 +110,114 @@ async function saveVenta() {
     await db.from('animales').update({ estado: 'vendido' }).eq('id', animalId);
   }
 
+  // ✅ Reflejar el nuevo estado de los animales en memoria al instante
+  animalesCache.forEach(a => { if (selAnimales.includes(a.id)) a.estado = 'vendido'; });
+
   showToast('✅ Venta registrada');
   closeModal('modal-venta');
   loadVentas();
   loadAnimales(); // ✅ actualiza estado en tabla animales
 }
 
+// Guardamos aquí los animales que ya pertenecían a la venta que se está
+// editando, para poder comparar contra la nueva selección al guardar.
+let edVentaAnimalesOriginales = [];
+
 async function openEditVenta(id) {
-  const { data: v } = await db.from('ventas').select('*').eq('id', id).single();
-  if (!v) return;
+  const { data: v, error } = await db.from('ventas').select('*').eq('id', id).single();
+  if (error || !v) { showToast('Error cargando la venta', 'error'); return; }
+
   document.getElementById('ev-id').value      = v.id;
   document.getElementById('ev-fecha').value   = v.fecha   || '';
   document.getElementById('ev-cliente').value = v.cliente || '';
+  document.getElementById('ev-tipo').value    = v.tipo    || '';
   document.getElementById('ev-ingreso').value = v.ingreso != null ? v.ingreso : (v.total || '');
   document.getElementById('ev-costo').value   = v.costo   || '';
+  document.getElementById('ev-peso-vendido').value = v.peso_vendido != null ? v.peso_vendido : '';
+  document.getElementById('ev-peso-real').value    = v.peso_real    != null ? v.peso_real    : '';
+  document.getElementById('ev-cantidad').value     = v.cantidad     != null ? v.cantidad     : '';
   document.getElementById('ev-notas').value   = v.notas   || '';
+
+  // Mostrar/ocultar campos según tipo (peso vs cantidad), solo dentro de este modal
+  toggleVentaFields(document.getElementById('ev-tipo'));
+
+  // ✅ Borregos que ya están asociados a esta venta
+  const { data: detalles, error: errDet } = await db
+    .from('detalle_venta')
+    .select('id_animal')
+    .eq('id_venta', id);
+  if (errDet) { showToast('Error cargando animales de la venta', 'error'); }
+  const idsDeEstaVenta = (detalles || []).map(d => d.id_animal).filter(Boolean);
+  edVentaAnimalesOriginales = idsDeEstaVenta;
+
+  // ✅ Opciones disponibles: animales activos + los que ya pertenecen a esta venta
+  //    (estos últimos están en estado 'vendido', pero deben poder seguir
+  //    seleccionados/deseleccionados dentro del modal de edición)
+  const sel = document.getElementById('ev-animales');
+  const opciones = animalesCache.filter(a =>
+    a.estado === 'activo' || idsDeEstaVenta.includes(a.id)
+  );
+  sel.innerHTML = opciones.length
+    ? opciones.map(a =>
+        `<option value="${a.id}" ${idsDeEstaVenta.includes(a.id) ? 'selected' : ''}>${a.identificador}${a.nombre ? ' — ' + a.nombre : ''}</option>`
+      ).join('')
+    : '<option disabled>No hay animales disponibles</option>';
+
   openModal('modal-edit-venta');
 }
 
 async function updateVenta() {
   const id      = document.getElementById('ev-id').value;
+  const tipo    = document.getElementById('ev-tipo').value;
   const ingreso = parseFloat(document.getElementById('ev-ingreso').value) || null;
   const costo   = parseFloat(document.getElementById('ev-costo').value)   || null;
+
+  const selAnimalesNuevo = Array.from(document.getElementById('ev-animales').selectedOptions)
+    .map(o => o.value).filter(Boolean);
+
   const payload = {
     fecha:   document.getElementById('ev-fecha').value   || null,
     cliente: document.getElementById('ev-cliente').value || null,
+    tipo:    tipo || null,
     ingreso, costo, total: ingreso,
+    peso_vendido: tipo === 'carne'    ? (parseFloat(document.getElementById('ev-peso-vendido').value) || null) : null,
+    peso_real:    tipo === 'carne'    ? (parseFloat(document.getElementById('ev-peso-real').value)    || null) : null,
+    cantidad:     tipo === 'pie_cria' ? (parseInt(document.getElementById('ev-cantidad').value)       || null) : null,
     notas:   document.getElementById('ev-notas').value.trim() || null,
   };
+
   const { error } = await db.from('ventas').update(payload).eq('id', id);
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
+
+  // ✅ Comparar selección original vs nueva para actualizar detalle_venta y animales
+  const originales = edVentaAnimalesOriginales || [];
+  const quitados  = originales.filter(a => !selAnimalesNuevo.includes(a));
+  const agregados = selAnimalesNuevo.filter(a => !originales.includes(a));
+
+  for (const animalId of quitados) {
+    await db.from('detalle_venta').delete().eq('id_venta', id).eq('id_animal', animalId);
+    await db.from('animales').update({ estado: 'activo' }).eq('id', animalId);
+  }
+  for (const animalId of agregados) {
+    await db.from('detalle_venta').insert({
+      id_venta:  id,
+      id_animal: animalId,
+      precio: ingreso && selAnimalesNuevo.length ? parseFloat((ingreso / selAnimalesNuevo.length).toFixed(2)) : null,
+    });
+    await db.from('animales').update({ estado: 'vendido' }).eq('id', animalId);
+  }
+
+  // ✅ Reflejar los cambios de estado en memoria al instante
+  animalesCache.forEach(a => {
+    if (quitados.includes(a.id))  a.estado = 'activo';
+    if (agregados.includes(a.id)) a.estado = 'vendido';
+  });
+
   showToast('✅ Venta actualizada');
   closeModal('modal-edit-venta');
   loadVentas();
+  loadDetalleVenta();
+  loadAnimales();
 }
 
 // ✅ Eliminar venta y revertir estado de animales
@@ -149,6 +228,9 @@ async function deleteVenta(id) {
     for (const d of detalles) {
       if (d.id_animal) await db.from('animales').update({ estado: 'activo' }).eq('id', d.id_animal);
     }
+    // ✅ Reflejar de inmediato en memoria
+    const idsRevertidos = detalles.map(d => d.id_animal).filter(Boolean);
+    animalesCache.forEach(a => { if (idsRevertidos.includes(a.id)) a.estado = 'activo'; });
   }
   const { error } = await db.from('ventas').delete().eq('id', id);
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
@@ -220,7 +302,10 @@ async function saveDetalle() {
   if (!payload.id_venta || !payload.id_animal) { showToast('Venta y animal son obligatorios', 'error'); return; }
   const { error } = await db.from('detalle_venta').insert(payload);
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
-  if (animalId) await db.from('animales').update({ estado: 'vendido' }).eq('id', animalId);
+  if (animalId) {
+    await db.from('animales').update({ estado: 'vendido' }).eq('id', animalId);
+    const a = animalesCache.find(a => a.id === animalId); if (a) a.estado = 'vendido';
+  }
   showToast('✅ Detalle registrado');
   closeModal('modal-detalle');
   loadDetalleVenta();
@@ -256,7 +341,10 @@ async function deleteDetalle(id, animalId) {
   if (!confirm('¿Seguro que deseas eliminar este registro?')) return;
   const { error } = await db.from('detalle_venta').delete().eq('id', id);
   if (error) { showToast('Error al eliminar: ' + error.message, 'error'); return; }
-  if (animalId) await db.from('animales').update({ estado: 'activo' }).eq('id', animalId);
+  if (animalId) {
+    await db.from('animales').update({ estado: 'activo' }).eq('id', animalId);
+    const a = animalesCache.find(a => a.id === animalId); if (a) a.estado = 'activo';
+  }
   showToast('🗑 Registro eliminado');
   loadDetalleVenta();
   loadAnimales();

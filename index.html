@@ -729,25 +729,27 @@
           <input type="number" id="ev-costo" min="0" step="0.01">
         </div>
 
-        <div class="form-group carne-only">
+        <div class="form-group carne-only" style="display:none">
           <label>Peso Vendido (kg)</label>
           <input type="number" id="ev-peso-vendido" min="0" step="0.1">
         </div>
 
-        <div class="form-group carne-only">
+        <div class="form-group carne-only" style="display:none">
           <label>Peso Real (kg)</label>
           <input type="number" id="ev-peso-real" min="0" step="0.1">
         </div>
 
-        <div class="form-group pie-only">
+        <div class="form-group pie-only" style="display:none">
           <label>Cantidad de Animales</label>
           <input type="number" id="ev-cantidad" min="1" step="1">
         </div>
 
         <div class="form-group" style="grid-column:1/-1">
-          <label>Borregos Vendidos</label>
-          <select id="ev-animales" multiple size="6"></select>
-          <small>Mantén presionada Ctrl para seleccionar varios animales.</small>
+          <label>Borregos de la Venta</label>
+          <select id="ev-animales" multiple size="6"
+            style="width:100%;border:2px solid var(--crema-oscuro);border-radius:8px;padding:0.5rem;font-family:Lato,sans-serif">
+          </select>
+          <small style="color:var(--gris-calido)">Incluye los borregos ya vendidos en esta venta y los activos disponibles. Deselecciona uno para devolverlo a "activo", o selecciona otro para agregarlo. Mantén Ctrl (Windows) o Cmd (Mac) para elegir varios.</small>
         </div>
 
         <div class="form-group" style="grid-column:1/-1">
