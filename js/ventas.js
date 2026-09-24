@@ -133,6 +133,16 @@ async function saveVenta() {
   // Animales seleccionados
   const selAnimales = Array.from(document.getElementById('v-animales').selectedOptions).map(o => o.value).filter(Boolean);
 
+  // ✅ Si es pie de cría, la cantidad de borregos seleccionados debe coincidir exacto con "Cantidad de Animales"
+  if (tipo === 'pie_cria') {
+    const cantidad = parseInt(document.getElementById('v-cantidad').value) || 0;
+    if (cantidad < 1) { showToast('Ingresa la cantidad de animales', 'error'); return; }
+    if (selAnimales.length !== cantidad) {
+      showToast(`Debes seleccionar exactamente ${cantidad} borrego(s) (seleccionaste ${selAnimales.length})`, 'error');
+      return;
+    }
+  }
+
   const payload = {
     fecha,
     cliente:      document.getElementById('v-cliente').value.trim() || null,
@@ -166,8 +176,9 @@ async function saveVenta() {
 
   showToast('✅ Venta registrada');
   closeModal('modal-venta');
-  loadVentas();
-  loadAnimales(); // ✅ actualiza estado en tabla animales
+  await loadVentas();
+  await loadAnimales(); // ✅ actualiza estado en tabla animales
+  renderResumenBorregos();
 }
 
 // Guardamos aquí los animales que ya pertenecían a la venta que se está
@@ -205,18 +216,21 @@ async function openEditVenta(id) {
   const idsDeEstaVenta = (detalles || []).map(d => d.id_animal).filter(Boolean);
   edVentaAnimalesOriginales = idsDeEstaVenta;
 
-  // ✅ Opciones disponibles: animales activos + los que ya pertenecen a esta venta
-  //    (estos últimos están en estado 'vendido', pero deben poder seguir
-  //    seleccionados/deseleccionados dentro del modal de edición)
+  // ✅ Se muestran TODOS los borregos (no solo los disponibles), para que si un
+  //    borrego quedó marcado "vendido" por error puedas corregirlo aquí mismo,
+  //    sin tener que borrar toda la venta. Los que ya pertenecen a esta venta
+  //    salen preseleccionados; el resto muestra su estado actual como referencia.
   const sel = document.getElementById('ev-animales');
-  const opciones = animalesCache.filter(a =>
-    animalDisponible(a) || idsDeEstaVenta.includes(a.id)
-  );
+  const opciones = animalesCache;
   sel.innerHTML = opciones.length
-    ? opciones.map(a =>
-        `<option value="${a.id}" ${idsDeEstaVenta.includes(a.id) ? 'selected' : ''}>${a.identificador}${a.nombre ? ' — ' + a.nombre : ''}</option>`
-      ).join('')
-    : '<option disabled>No hay animales disponibles</option>';
+    ? opciones.map(a => {
+        const esDeEstaVenta = idsDeEstaVenta.includes(a.id);
+        const etiquetaEstado = esDeEstaVenta ? '' :
+          a.estado === 'vendido' ? ' (vendido)' :
+          a.estado === 'muerto'  ? ' (muerto)'  : '';
+        return `<option value="${a.id}" ${esDeEstaVenta ? 'selected' : ''}>${a.identificador}${a.nombre ? ' — ' + a.nombre : ''}${etiquetaEstado}</option>`;
+      }).join('')
+    : '<option disabled>No hay animales registrados</option>';
 
   openModal('modal-edit-venta');
 }
@@ -229,6 +243,16 @@ async function updateVenta() {
 
   const selAnimalesNuevo = Array.from(document.getElementById('ev-animales').selectedOptions)
     .map(o => o.value).filter(Boolean);
+
+  // ✅ Si es pie de cría, la cantidad de borregos seleccionados debe coincidir exacto con "Cantidad de Animales"
+  if (tipo === 'pie_cria') {
+    const cantidad = parseInt(document.getElementById('ev-cantidad').value) || 0;
+    if (cantidad < 1) { showToast('Ingresa la cantidad de animales', 'error'); return; }
+    if (selAnimalesNuevo.length !== cantidad) {
+      showToast(`Debes seleccionar exactamente ${cantidad} borrego(s) (seleccionaste ${selAnimalesNuevo.length})`, 'error');
+      return;
+    }
+  }
 
   const payload = {
     fecha:   document.getElementById('ev-fecha').value   || null,
@@ -271,9 +295,10 @@ async function updateVenta() {
 
   showToast('✅ Venta actualizada');
   closeModal('modal-edit-venta');
-  loadVentas();
-  loadDetalleVenta();
-  loadAnimales();
+  await loadVentas();
+  await loadDetalleVenta();
+  await loadAnimales();
+  renderResumenBorregos();
 }
 
 // ✅ Eliminar venta y revertir estado de animales
@@ -292,8 +317,12 @@ async function deleteVenta(id) {
   const { error } = await db.from('ventas').delete().eq('id', id);
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast('🗑 Venta eliminada');
-  loadVentas();
-  loadAnimales();
+  // ✅ Esperamos a que ambas recargas terminen (antes se disparaban sin
+  //    esperar, así que la tabla de Animales y el resumen podían tardar
+  //    en reflejar el cambio, o quedarse con datos viejos).
+  await loadVentas();
+  await loadAnimales();
+  renderResumenBorregos(); // por si loadAnimales() no lo hace por su cuenta
 }
 
 function populateVentaSelect() {

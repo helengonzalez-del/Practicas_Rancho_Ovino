@@ -70,6 +70,9 @@ async function loadAnimales() {
   animalesCache = data || [];
   renderAnimalesTable(data);
   populateAnimalSelects();
+  // ✅ Mantiene sincronizado el resumen de borregos de la pestaña Ventas,
+  // sin importar si loadAnimales() se disparó desde ahí o desde Animales.
+  if (typeof renderResumenBorregos === 'function') renderResumenBorregos();
 }
 
 function renderAnimalesTable(data) {
