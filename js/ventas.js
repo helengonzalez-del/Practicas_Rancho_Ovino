@@ -2,6 +2,7 @@
 
 async function loadVentas() {
   loading('table-ventas');
+  await refrescarAnimalesCache(); // ✅ mantiene el resumen de borregos y los selects al día
   const { data, error } = await db.from('ventas').select('*').order('fecha', { ascending: false });
   if (error) { showToast('Error cargando ventas', 'error'); return; }
   ventasCache = data || [];
@@ -38,25 +39,68 @@ async function loadVentas() {
 // ✅ Trae los animales más recientes desde la base y actualiza el cache local.
 // Se usa antes de abrir los modales de venta para no depender de que
 // loadAnimales() ya se haya ejecutado antes (por ejemplo si el usuario
-// entra directo a la pestaña Ventas sin pasar por Animales).
+// entra directo a la pestaña Ventas sin pasar por Animales). También
+// refresca los selects de padre/madre (si esa función existe) y el
+// resumen de borregos, para que todo quede sincronizado.
 async function refrescarAnimalesCache() {
   const { data, error } = await db.from('animales').select('*').order('created_at', { ascending: false });
   if (error) { showToast('Error cargando animales', 'error'); return animalesCache || []; }
   animalesCache = data || [];
+  if (typeof populateAnimalSelects === 'function') populateAnimalSelects();
+  renderResumenBorregos();
   return animalesCache;
 }
 
-// ✅ Abrir modal y poblar animales activos
+// ✅ Un animal se considera disponible para vender si NO está explícitamente
+// 'vendido' o 'muerto'. Esto cubre también animales cuyo estado haya
+// quedado vacío/null por error, en vez de exigir el texto exacto 'activo'.
+function animalDisponible(a) {
+  return a.estado !== 'vendido' && a.estado !== 'muerto';
+}
+
+// ✅ Panel con el resumen de borregos por estado (activos / vendidos / muertos)
+// para la pestaña de Ventas. Si el contenedor #resumen-borregos no existe
+// en el HTML todavía, esta función simplemente no hace nada.
+function renderResumenBorregos() {
+  const cont = document.getElementById('resumen-borregos');
+  if (!cont) return;
+
+  const activos  = animalesCache.filter(a => a.estado === 'activo' || !a.estado);
+  const vendidos = animalesCache.filter(a => a.estado === 'vendido');
+  const muertos  = animalesCache.filter(a => a.estado === 'muerto');
+
+  const listar = arr => arr.length
+    ? arr.map(a => `${a.identificador}${a.nombre ? ' — ' + a.nombre : ''}`).join(', ')
+    : '—';
+
+  cont.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin:1rem 0">
+      <div style="border-left:4px solid #2e7d32;background:#f4f9f4;border-radius:8px;padding:0.75rem 1rem">
+        <strong>🟢 Activos (${activos.length})</strong>
+        <div style="font-size:0.85rem;color:#666;margin-top:0.25rem">${listar(activos)}</div>
+      </div>
+      <div style="border-left:4px solid #B08900;background:#fbf7ec;border-radius:8px;padding:0.75rem 1rem">
+        <strong>💰 Vendidos (${vendidos.length})</strong>
+        <div style="font-size:0.85rem;color:#666;margin-top:0.25rem">${listar(vendidos)}</div>
+      </div>
+      <div style="border-left:4px solid #555;background:#f2f2f2;border-radius:8px;padding:0.75rem 1rem">
+        <strong>⚫ Muertos (${muertos.length})</strong>
+        <div style="font-size:0.85rem;color:#666;margin-top:0.25rem">${listar(muertos)}</div>
+      </div>
+    </div>`;
+}
+
+// ✅ Abrir modal y poblar animales disponibles
 async function openModalVenta() {
   await refrescarAnimalesCache();
 
   const sel = document.getElementById('v-animales');
   if (sel) {
     sel.innerHTML = animalesCache
-      .filter(a => a.estado === 'activo')
+      .filter(animalDisponible)
       .map(a => `<option value="${a.id}">${a.identificador}${a.nombre ? ' — ' + a.nombre : ''}</option>`)
       .join('');
-    if (!sel.innerHTML) sel.innerHTML = '<option disabled>No hay animales activos disponibles</option>';
+    if (!sel.innerHTML) sel.innerHTML = '<option disabled>No hay animales disponibles</option>';
   }
   // Limpiar campos
   ['v-fecha','v-cliente','v-ingreso','v-costo','v-peso-vendido','v-peso-real','v-rendimiento','v-cantidad','v-notas'].forEach(id => {
@@ -125,6 +169,7 @@ async function saveVenta() {
 
   // ✅ Reflejar el nuevo estado de los animales en memoria al instante
   animalesCache.forEach(a => { if (selAnimales.includes(a.id)) a.estado = 'vendido'; });
+  renderResumenBorregos();
 
   showToast('✅ Venta registrada');
   closeModal('modal-venta');
@@ -172,7 +217,7 @@ async function openEditVenta(id) {
   //    seleccionados/deseleccionados dentro del modal de edición)
   const sel = document.getElementById('ev-animales');
   const opciones = animalesCache.filter(a =>
-    a.estado === 'activo' || idsDeEstaVenta.includes(a.id)
+    animalDisponible(a) || idsDeEstaVenta.includes(a.id)
   );
   sel.innerHTML = opciones.length
     ? opciones.map(a =>
@@ -229,6 +274,7 @@ async function updateVenta() {
     if (quitados.includes(a.id))  a.estado = 'activo';
     if (agregados.includes(a.id)) a.estado = 'vendido';
   });
+  renderResumenBorregos();
 
   showToast('✅ Venta actualizada');
   closeModal('modal-edit-venta');
@@ -248,6 +294,7 @@ async function deleteVenta(id) {
     // ✅ Reflejar de inmediato en memoria
     const idsRevertidos = detalles.map(d => d.id_animal).filter(Boolean);
     animalesCache.forEach(a => { if (idsRevertidos.includes(a.id)) a.estado = 'activo'; });
+    renderResumenBorregos();
   }
   const { error } = await db.from('ventas').delete().eq('id', id);
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
@@ -301,7 +348,7 @@ function openModalDetalle() {
   const selAnimal = document.getElementById('d-animal');
   if (selAnimal) {
     selAnimal.innerHTML = '<option value="">Seleccionar animal...</option>' +
-      animalesCache.filter(a => a.estado === 'activo').map(a =>
+      animalesCache.filter(animalDisponible).map(a =>
         `<option value="${a.id}">${a.identificador}${a.nombre?' — '+a.nombre:''}</option>`).join('');
   }
   openModal('modal-detalle');
