@@ -1,11 +1,16 @@
 // app.js — Inicialización principal
 
 async function initApp() {
-  const today = new Date().toISOString().split('T')[0];
+
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
   ['a-nacimiento','r-empadre','r-parto-real','p-fecha','s-fecha','v-fecha'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = today;
   });
+
+
 
   const { error: testError } = await db.from('animales').select('id').limit(1);
   if (testError) { showToast('❌ Error de conexión: ' + testError.message, 'error'); return; }
