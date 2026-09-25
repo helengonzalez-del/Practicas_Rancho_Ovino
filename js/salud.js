@@ -1,5 +1,15 @@
 // salud.js — Eventos de salud animal
 
+// Poblar el select de animal en el modal "Registrar Evento"
+async function populateSaludAnimalSelect() {
+  const { data, error } = await db.from('animales').select('id, identificador, nombre').order('identificador');
+  if (error) { showToast('Error cargando animales', 'error'); return; }
+  const sel = document.getElementById('s-animal');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Seleccionar...</option>' +
+    data.map(a => `<option value="${a.id}">${a.identificador}${a.nombre ? ' - ' + a.nombre : ''}</option>`).join('');
+}
+
 async function loadSalud() {
   loading('table-salud');
   const { data, error } = await db.from('salud').select(`*,animal:id_animal(identificador,nombre)`).order('fecha', { ascending: false });

@@ -221,7 +221,7 @@
       <h1 class="page-title">⚖️ Producción (Pesos)</h1>
       <div style="display:flex;gap:0.75rem;align-items:center">
         <span class="realtime-badge"><span class="status-dot" style="background:#4CAF50;animation:pulse 2s infinite"></span>Tiempo Real</span>
-        <button class="btn btn-primary" onclick="openModal('modal-produccion')">+ Registrar Peso</button>
+        <button class="btn btn-primary" onclick="populateProduccionAnimalSelect();openModal('modal-produccion')">+ Registrar Peso</button>
       </div>
     </div>
     <div id="table-produccion" class="table-wrap"></div>
@@ -233,7 +233,7 @@
       <h1 class="page-title">💉 Salud Animal</h1>
       <div style="display:flex;gap:0.75rem;align-items:center">
         <span class="realtime-badge"><span class="status-dot" style="background:#4CAF50;animation:pulse 2s infinite"></span>Tiempo Real</span>
-        <button class="btn btn-primary" onclick="openModal('modal-salud')">+ Registrar Evento</button>
+        <button class="btn btn-primary" onclick="populateSaludAnimalSelect();openModal('modal-salud')">+ Registrar Evento</button>
       </div>
     </div>
     <div id="table-salud" class="table-wrap"></div>

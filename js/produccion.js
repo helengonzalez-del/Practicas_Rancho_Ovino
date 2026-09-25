@@ -1,5 +1,15 @@
 // produccion.js — Registro de pesos
 
+// Poblar el select de animal en el modal "Registrar Peso"
+async function populateProduccionAnimalSelect() {
+  const { data, error } = await db.from('animales').select('id, identificador, nombre').order('identificador');
+  if (error) { showToast('Error cargando animales', 'error'); return; }
+  const sel = document.getElementById('p-animal');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Seleccionar...</option>' +
+    data.map(a => `<option value="${a.id}">${a.identificador}${a.nombre ? ' - ' + a.nombre : ''}</option>`).join('');
+}
+
 async function loadProduccion() {
   loading('table-produccion');
   const { data, error } = await db.from('produccion').select(`*,animal:id_animal(identificador,nombre)`).order('fecha', { ascending: false });
@@ -59,4 +69,4 @@ async function updateProduccion() {
   showToast('✅ Peso actualizado');
   closeModal('modal-edit-produccion');
   loadProduccion();
-}
+} 
