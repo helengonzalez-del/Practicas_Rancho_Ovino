@@ -248,95 +248,51 @@ async function updateAnimal() {
 }
 
 
-function populateAnimalSelects() {
-console.log('Animales cargados:', animalesCache);
- 
-const padreSelects = ['a-padre', 'ea-padre'];
-const madreSelects = ['a-madre', 'ea-madre'];
- 
-const machos = (animalesCache || []).filter(
-a => a.sexo && a.sexo.toLowerCase() === 'macho'
-);
- 
-const hembras = (animalesCache || []).filter(
-a => a.sexo && a.sexo.toLowerCase() === 'hembra'
-);
- 
-// ===== PADRES =====
-padreSelects.forEach(id => {
-const el = document.getElementById(id);
-if (!el) return;
- 
-const current = el.value;
- 
-el.innerHTML =
-`<option value="">Ninguno (registrar manualmente)</option>` +
-machos.map(a =>
-`<option value="${a.id}">
-${a.identificador}${a.nombre ? ' - ' + a.nombre : ''}
-</option>`
-).join('');
- 
-el.value = current;
-});
- 
-// ===== MADRES =====
-madreSelects.forEach(id => {
-const el = document.getElementById(id);
-if (!el) return;
- 
-const current = el.value;
- 
-el.innerHTML =
-`<option value="">Ninguna (registrar manualmente)</option>` +
-hembras.map(a =>
-`<option value="${a.id}">
-${a.identificador}${a.nombre ? ' - ' + a.nombre : ''}
-</option>`
-).join('');
- 
-el.value = current;
-});
- 
-// ===== OTROS SELECTS =====
-const otrosSelects = [
-'r-hembra',
-'r-macho',
-'p-animal',
-'s-animal',
-'d-animal'
-];
- 
-otrosSelects.forEach(id => {
-const el = document.getElementById(id);
-if (!el) return;
- 
-const current = el.value;
- 
-let animales = animalesCache;
- 
-if (id === 'r-hembra') {
-animales = hembras;
-}
- 
-if (id === 'r-macho') {
-animales = machos;
-}
- 
-el.innerHTML =
-`<option value="">Seleccionar...</option>` +
-animales.map(a =>
-`<option value="${a.id}">
-${a.identificador}${a.nombre ? ' - ' + a.nombre : ''}
-</option>`
-).join('');
- 
-el.value = current;
-});
- 
-togglePadreManual();
-toggleMadreManual();
- 
-console.log('Machos encontrados:', machos.length);
-console.log('Hembras encontradas:', hembras.length);
-}
+async function populateAnimalSelects() {
+  const { data, error } = await db
+  .from('animales')
+  .select('id,identificador,nombre,sexo');
+
+  if (error) {
+  showToast('Error cargando animales', 'error');
+  return;
+  }
+  const machos = data.filter(a => a.sexo === 'macho');
+  const hembras = data.filter(a => a.sexo === 'hembra');
+
+  const padreSelects = ['a-padre','ea-padre'];
+  const madreSelects = ['a-madre','ea-madre'];
+
+  padreSelects.forEach(id => {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+
+  const current = sel.value;
+
+  sel.innerHTML =
+  '<option value="">Ninguno (registrar manualmente)</option>' +
+  machos.map(m =>
+  `<option value="${m.id}">${m.identificador}${m.nombre ? ' - ' + m.nombre : ''}</option>`
+  ).join('');
+
+  sel.value = current;
+  });
+
+  madreSelects.forEach(id => {
+    const sel = document.getElementById(id);
+  if (!sel) return;
+
+  const current = sel.value;
+
+  sel.innerHTML =
+  '<option value="">Ninguna (registrar manualmente)</option>' +
+  hembras.map(h =>
+  `<option value="${h.id}">${h.identificador}${h.nombre ? ' - ' + h.nombre : ''}</option>`
+  ).join('');
+
+  sel.value = current;
+  });
+
+  togglePadreManual();
+  toggleMadreManual();
+  }
