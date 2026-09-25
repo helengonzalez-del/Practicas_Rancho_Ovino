@@ -1,13 +1,19 @@
 // produccion.js — Registro de pesos
 
 // Poblar el select de animal en el modal "Registrar Peso"
-async function populateProduccionAnimalSelect() {
+async function populateProduccionAnimalSelect(selectedId) {
   const { data, error } = await db.from('animales').select('id, identificador, nombre').order('identificador');
   if (error) { showToast('Error cargando animales', 'error'); return; }
-  const sel = document.getElementById('p-animal');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">Seleccionar...</option>' +
-    data.map(a => `<option value="${a.id}">${a.identificador}${a.nombre ? ' - ' + a.nombre : ''}</option>`).join('');
+  ['p-animal','ep2-animal'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Seleccionar...</option>' +
+      data.map(a => `<option value="${a.id}">${a.identificador}${a.nombre ? ' - ' + a.nombre : ''}</option>`).join('');
+  });
+  if (selectedId) {
+    const selEdit = document.getElementById('ep2-animal');
+    if (selEdit) selEdit.value = selectedId;
+  }
 }
 
 async function loadProduccion() {
@@ -24,7 +30,7 @@ async function loadProduccion() {
       <td>${p.observaciones || '—'}</td>
       <td>
         <div style="display:flex;gap:0.3rem">
-          <button class="btn btn-edit" onclick="openEditProduccion('${p.id}','${p.fecha||''}','${p.peso||''}','${(p.observaciones||'').replace(/'/g,'')}')">✏️</button>
+          <button class="btn btn-edit" onclick="openEditProduccion('${p.id}','${p.id_animal}','${p.fecha||''}','${p.peso||''}','${(p.observaciones||'').replace(/'/g,'')}')">✏️</button>
           <button class="btn btn-danger" onclick="deleteRecord('produccion','${p.id}',loadProduccion)">🗑</button>
         </div>
       </td>
@@ -49,24 +55,27 @@ async function saveProduccion() {
   loadProduccion();
 }
 
-function openEditProduccion(id, fecha, peso, obs) {
+function openEditProduccion(id, idAnimal, fecha, peso, obs) {
   document.getElementById('ep2-id').value    = id;
   document.getElementById('ep2-fecha').value = fecha;
   document.getElementById('ep2-peso').value  = peso;
   document.getElementById('ep2-obs').value   = obs;
+  populateProduccionAnimalSelect(idAnimal);
   openModal('modal-edit-produccion');
 }
 
 async function updateProduccion() {
   const id = document.getElementById('ep2-id').value;
   const payload = {
+    id_animal:    document.getElementById('ep2-animal').value,
     fecha:        document.getElementById('ep2-fecha').value,
     peso:         document.getElementById('ep2-peso').value ? parseFloat(document.getElementById('ep2-peso').value) : null,
     observaciones:document.getElementById('ep2-obs').value || null,
   };
+  if (!payload.id_animal) { showToast('El animal es obligatorio', 'error'); return; }
   const { error } = await db.from('produccion').update(payload).eq('id', id);
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast('✅ Peso actualizado');
   closeModal('modal-edit-produccion');
   loadProduccion();
-} 
+}

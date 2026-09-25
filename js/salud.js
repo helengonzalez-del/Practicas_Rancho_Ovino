@@ -1,13 +1,19 @@
 // salud.js — Eventos de salud animal
 
 // Poblar el select de animal en el modal "Registrar Evento"
-async function populateSaludAnimalSelect() {
+async function populateSaludAnimalSelect(selectedId) {
   const { data, error } = await db.from('animales').select('id, identificador, nombre').order('identificador');
   if (error) { showToast('Error cargando animales', 'error'); return; }
-  const sel = document.getElementById('s-animal');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">Seleccionar...</option>' +
-    data.map(a => `<option value="${a.id}">${a.identificador}${a.nombre ? ' - ' + a.nombre : ''}</option>`).join('');
+  ['s-animal','es-animal'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Seleccionar...</option>' +
+      data.map(a => `<option value="${a.id}">${a.identificador}${a.nombre ? ' - ' + a.nombre : ''}</option>`).join('');
+  });
+  if (selectedId) {
+    const selEdit = document.getElementById('es-animal');
+    if (selEdit) selEdit.value = selectedId;
+  }
 }
 
 async function loadSalud() {
@@ -69,12 +75,14 @@ async function openEditSalud(id) {
   document.getElementById('es-tratamiento').value   = s.tratamiento || '';
   document.getElementById('es-observaciones').value = s.observaciones || '';
   document.getElementById('es-notas').value         = s.notas || '';
+  populateSaludAnimalSelect(s.id_animal);
   openModal('modal-edit-salud');
 }
 
 async function updateSalud() {
   const id = document.getElementById('es-id').value;
   const payload = {
+    id_animal:    document.getElementById('es-animal').value,
     fecha:        document.getElementById('es-fecha').value,
     tipo:         document.getElementById('es-tipo').value,
     medicamento:  document.getElementById('es-medicamento').value || null,
@@ -84,6 +92,7 @@ async function updateSalud() {
     observaciones:document.getElementById('es-observaciones').value || null,
     notas:        document.getElementById('es-notas').value.trim() || null,
   };
+  if (!payload.id_animal) { showToast('El animal es obligatorio', 'error'); return; }
   const { error } = await db.from('salud').update(payload).eq('id', id);
   if (error) { showToast('Error: ' + error.message, 'error'); return; }
   showToast('✅ Evento actualizado');
