@@ -90,15 +90,19 @@
   }
 
   /* NAV TABS */
-  .nav-tabs {
+
+.nav-tabs {
     background: var(--tierra);
     display: flex;
     overflow-x: auto;
     scrollbar-width: none;
     border-bottom: 3px solid var(--dorado);
-  }
+    width: 100%;
+}
 
-  .nav-tab {
+.nav-tab {
+    flex: 1;
+    min-width: max-content;
     padding: 0.85rem 1.4rem;
     font-size: 0.8rem;
     font-weight: 700;
@@ -114,19 +118,20 @@
     margin-bottom: -3px;
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
-  }
+}
 
-  .nav-tab:hover {
+.nav-tab:hover {
     color: var(--crema);
     background: rgba(255,255,255,0.08);
-  }
+}
 
-  .nav-tab.active {
+.nav-tab.active {
     color: var(--dorado-claro);
     border-bottom-color: var(--dorado-claro);
     background: rgba(0,0,0,0.2);
-  }
+}
 
   /* MAIN CONTENT */
   .main {
