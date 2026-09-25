@@ -58,7 +58,7 @@ async function saveReproduccion() {
 
 function openEditParto(id, idHembra, idMacho, fechaEmpadre, partoReal, crias, estado, notas) {
   // poblar selects de hembra y macho
-  populateAnimalSelects().then(() => {
+  populateReproSelects().then(() => {
     document.getElementById('ep-id').value            = id;
     document.getElementById('ep-hembra').value        = idHembra;
     document.getElementById('ep-macho').value         = idMacho;
@@ -89,8 +89,8 @@ async function updateParto() {
   loadReproduccion();
 }
 
-// Función para poblar selects de hembra y macho
-async function populateAnimalSelects() {
+// Función para poblar selects de hembra y macho (reproducción)
+async function populateReproSelects() {
   const { data, error } = await db.from('animales').select('id, identificador, nombre, sexo');
   if (error) { showToast('Error cargando animales', 'error'); return; }
 
@@ -111,4 +111,4 @@ async function populateAnimalSelects() {
     sel.innerHTML = '<option value="">Seleccionar...</option>' +
       machos.map(m => `<option value="${m.id}">${m.identificador} - ${m.nombre||''}</option>`).join('');
   });
-}
+  }
