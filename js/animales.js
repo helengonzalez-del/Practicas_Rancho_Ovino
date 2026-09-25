@@ -249,24 +249,94 @@ async function updateAnimal() {
 
 
 function populateAnimalSelects() {
-  const selects = [
-    'a-padre','a-madre',
-    'ea-padre','ea-madre', // ✅ agregar estos para edición
-    'r-hembra','r-macho','p-animal','s-animal','d-animal'
-  ];
-  selects.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const current = el.value;
-    const label0 = id==='a-padre' || id==='ea-padre'
-      ? 'Ninguno (registrar manualmente)'
-      : id==='a-madre' || id==='ea-madre'
-        ? 'Ninguna (registrar manualmente)'
-        : 'Seleccionar...';
-    el.innerHTML = `<option value="">${label0}</option>` + animalesCache.map(a =>
-      `<option value="${a.id}">${a.identificador}${a.nombre?' - '+a.nombre:''}</option>`).join('');
-    el.value = current;
-  });
-  togglePadreManual();
-  toggleMadreManual();
+console.log('Animales cargados:', animalesCache);
+ 
+const padreSelects = ['a-padre', 'ea-padre'];
+const madreSelects = ['a-madre', 'ea-madre'];
+ 
+const machos = (animalesCache || []).filter(
+a => a.sexo && a.sexo.toLowerCase() === 'macho'
+);
+ 
+const hembras = (animalesCache || []).filter(
+a => a.sexo && a.sexo.toLowerCase() === 'hembra'
+);
+ 
+// ===== PADRES =====
+padreSelects.forEach(id => {
+const el = document.getElementById(id);
+if (!el) return;
+ 
+const current = el.value;
+ 
+el.innerHTML =
+`<option value="">Ninguno (registrar manualmente)</option>` +
+machos.map(a =>
+`<option value="${a.id}">
+${a.identificador}${a.nombre ? ' - ' + a.nombre : ''}
+</option>`
+).join('');
+ 
+el.value = current;
+});
+ 
+// ===== MADRES =====
+madreSelects.forEach(id => {
+const el = document.getElementById(id);
+if (!el) return;
+ 
+const current = el.value;
+ 
+el.innerHTML =
+`<option value="">Ninguna (registrar manualmente)</option>` +
+hembras.map(a =>
+`<option value="${a.id}">
+${a.identificador}${a.nombre ? ' - ' + a.nombre : ''}
+</option>`
+).join('');
+ 
+el.value = current;
+});
+ 
+// ===== OTROS SELECTS =====
+const otrosSelects = [
+'r-hembra',
+'r-macho',
+'p-animal',
+'s-animal',
+'d-animal'
+];
+ 
+otrosSelects.forEach(id => {
+const el = document.getElementById(id);
+if (!el) return;
+ 
+const current = el.value;
+ 
+let animales = animalesCache;
+ 
+if (id === 'r-hembra') {
+animales = hembras;
+}
+ 
+if (id === 'r-macho') {
+animales = machos;
+}
+ 
+el.innerHTML =
+`<option value="">Seleccionar...</option>` +
+animales.map(a =>
+`<option value="${a.id}">
+${a.identificador}${a.nombre ? ' - ' + a.nombre : ''}
+</option>`
+).join('');
+ 
+el.value = current;
+});
+ 
+togglePadreManual();
+toggleMadreManual();
+ 
+console.log('Machos encontrados:', machos.length);
+console.log('Hembras encontradas:', hembras.length);
 }

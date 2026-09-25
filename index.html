@@ -194,7 +194,10 @@
       <h1 class="page-title">🐑 Registro de Animales</h1>
       <div style="display:flex;gap:0.75rem;align-items:center">
         <span class="realtime-badge"><span class="status-dot" style="background:#4CAF50;animation:pulse 2s infinite"></span>Tiempo Real</span>
-        <button class="btn btn-primary" onclick="openModal('modal-animal')">+ Registrar Animal</button>
+        <button class="btn btn-primary"
+        onclick="populateAnimalSelects();openModal('modal-animal')">
+        + Registrar Animal
+        </button>
       </div>
     </div>
     <div id="table-animales" class="table-wrap"></div>
